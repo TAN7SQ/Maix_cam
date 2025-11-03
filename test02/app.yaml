@@ -1,0 +1,10 @@
+id: test02
+name: test02_camera_example
+name[zh]:
+version: 1.0.0
+#icon: assets/hello.png
+author: TAN
+desc: 
+desc[zh]:
+files:
+  # assets: assets
