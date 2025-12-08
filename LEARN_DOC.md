@@ -5,14 +5,16 @@
 
 - 需要下载的软件：wsl、ubuntu20.04、vscode、filezilla
 
-1. 在 MicroSoft Store 下载 wsl2 和 ubuntu20.04 后进行安装，能够在 powershell 中进入 ubuntu 即可
-   - 注意 wsl 默认装在 c 盘，可以直接在设置中直接移动 wsl 到你需要的盘符，不推荐在 c 盘进行开发
-2. 配置 samba 服务器[samba 安装推荐教程](https://wiki.lckfb.com/zh-hans/tspi-rk3566/project-case/fat-little-cell-phone/programming-environment-setup.html#samba%E6%90%AD%E5%BB%BA)，将 wsl 的根文件映射到 windows 的盘符（这里我映射到 z 盘，看个人喜好即可），使得我们可以在 windows 下直接看到 wsl 下的文件就像是在操作自己本地的盘符一样，由于是基于内部的网卡连接，所以极其稳定
-3. 在 vscode 中下载 wsl 插件，即可实现在 vscode 启动 wsl，可直接在 vscode 的 terminal 中进行命令的输入，无需再麻烦的使用 ssh 登录 wsl（当然也是可以的）
-4. 在 vscode 中登录 wsl，在第一次下载 maixcdk 的时候可能会遇到一些问题，如在使用 pip 的时候需要先创建虚拟环境，在虚拟环境中使用 pip(这是 ubuntu 20.04 的新特性，当然也可以直接使用 sudo 命令来强制下载，但为了不污染环境，尽量创建虚拟环境后再使用 python)，后续的所有操作都要在虚拟环境中进行
-5. 在使用 wsl 的时候，由于其是 NAT 模式，可以直接共享主机的梯子，大多数情况下都可以直接下载（但速度较慢，在使用虚拟机的时候需要配置梯子，如果不成功的话就直接手动下载对应的库（速度较快），下载完后不需要解压，只需要放到在 buildlog 中可以需要下载的位置即可，build 会自动解压，当全部需要的依赖库都下载完后，即可重新使用 build，这个过程一般需要重复几次，将所有库下载完即可，[纯命令行翻墙教程](https://github.com/Xizhe-Hao/Clash-for-RaspberryPi-4B?tab=readme-ov-file)。
-6. 下载 filezilla，使用 fscp 登录到开发板（端口号 22），直接右键即可传输文件
-7. 最后在 vscode/powershell 中使用 ssh 登录开发板（基于以太网连接会更加稳定快速，不过 ssh 也不占什么带宽）
+  1. 在 MicroSoft Store 下载 wsl2 和 ubuntu20.04 后进行安装，能够在 powershell 中进入 ubuntu 即可
+
+  - 注意 wsl 默认装在 c 盘，可以直接在设置中直接移动 wsl 到你需要的盘符，不推荐在 c 盘进行开发
+
+  2. [samba 安装教程](https://wiki.lckfb.com/zh-hans/tspi-rk3566/project-case/fat-little-cell-phone/programming-environment-setup.html#samba%E6%90%AD%E5%BB%BA)，将 wsl 的根文件映射到 windows 的盘符（这里我映射到 z 盘，看个人喜好即可），使得我们可以在 windows 下直接看到 wsl 下的文件就像是在操作自己本地的盘符一样，由于是基于内部的网卡连接，所以极其稳定
+  3. 在 vscode 中下载 wsl 插件，即可实现在 vscode 启动 wsl，可直接在 vscode 的 terminal 中进行命令的输入，无需再麻烦的使用 ssh 登录 wsl（当然也是可以的）
+  4. 在 vscode 中登录 wsl，在第一次下载 maixcdk 的时候可能会遇到一些问题，如在使用 pip 的时候需要先创建虚拟环境，在虚拟环境中使用 pip(这是 ubuntu 20.04 的新特性，当然也可以直接使用 sudo 命令来强制下载，但为了不污染环境，尽量创建虚拟环境后再使用 python)，后续的所有操作都要在虚拟环境中进行
+  5. 在使用 wsl 的时候，由于其是 NAT 模式，可以直接共享主机的梯子，大多数情况下都可以直接下载（但速度较慢，在使用虚拟机的时候需要配置梯子，如果不成功的话就直接手动下载对应的库（速度较快），下载完后不需要解压，只需要放到在 buildlog 中可以需要下载的位置即可，build 会自动解压，当全部需要的依赖库都下载完后，即可重新使用 build，这个过程一般需要重复几次，将所有库下载完即可，[纯命令行翻墙教程](https://github.com/Xizhe-Hao/Clash-for-RaspberryPi-4B?tab=readme-ov-file)。
+  6. 下载 filezilla，使用 fscp 登录到开发板（端口号 22），直接右键即可传输文件
+  7. 最后在 vscode/powershell 中使用 ssh 登录开发板（基于以太网连接会更加稳定快速，不过 ssh 也不占什么带宽），这些端口在 win 和在 wsl 都可以访问的
 
 ## 推荐在 vscode 下载的插件：
 
@@ -38,6 +40,14 @@
 maixcdk distclean # 清除编译中间文件
 maixcdk build     # 完全编译
 maixcdk build2    # 这个不会检测增删的文件，只对文件内部代码的增删做编译
+
+==================================
+build time: 5.05s (2025-12-08 11:20:16)
+platform  : maixcam
+build type: Release(MinSizeRel)
+toolchain : musl_t-head
+==================================
+有输出上述字样，才能算真正编译完成
 ```
 
 4. 上传：
@@ -47,6 +57,39 @@ maixcdk build2    # 这个不会检测增删的文件，只对文件内部代码
 
       - 首先关闭屏幕显示进程，使用`pa -a`命令查看所有的进程号，使用`kill <pid>`来删除进程（deamon），（一般 pid 是 296）
       - 然后进入 filezilla 传入的文件夹内，使用`chmod +x <execatue>`为编译好的程序增加可执行权限
+      - 如果想要开机自启动的话可以通过配置` vi /etc/rc.local`来实现（包括联网等操作）
+
+---
+
+# 远程调试 STM32
+
+## 前言
+
+- 由于 Maixcam 固件本身没有加载 Rt-Linux 的补丁，且 sg2002 的 Rtos 核很多外设无法使用（目前官方只有 uart 和 i2c 的 demo ———— 25.11.20），且 sg2002 本身的外设就不多，除去 mipi-csi，sdio0，sdio1，eth，uart，emmc，实则剩下的可用引脚不多，所以想要全部使用 sg2002 来控制不仅难度大、sdk 不完善，而且本身可拓展性也不强，故舍弃掉
+  - 综上所述，在现在这个时间点来看，往前看往后看，使用 stm32/esp32 + sg2002 无疑是一个更佳的选择（这里先不讨论 esp32 的情况）
+- 显然，假如只使用 sg2002 的控制+视觉，那么可以很轻易的实现基于 ssh 的无线调试方式，想要使用 sg2002+stm32，很自然的需要解决烧录的问题，以下是几个解决方法
+
+  1. 静态烧录口烧录 + sg2002 转发串口调试
+  2. 板载装甲板无线烧录器（基于 esp32s3）
+  3. link + sg2002 + openocd server
+
+  - 方案一的坏处是无法远程烧录，必须使用烧录器连接烧录，且调试也不方便；方案二基于 esp32s3 其本身的 2.4Ghz 的频段调试，也很容易受到干扰，且不仅需要无线板载烧录器，其还需要搭配主从烧录器来使用，不够稳定；方案三的好处是直接使用 openocd 开启 gdb server ，在同一局域网的情况下就能实现烧录与调试（但目前似乎因为 ozone 使用的是拓展的 gdb，openocd 的 gdb 是标准的 gdb，不能兼容 ozone ，后续尝试编译更加完整的 openocd ），方案三不需要编写其他额外的代码，可显著避免其他的问题，只要电脑开热点或者电脑使用网线连接 sg2002、开启 openocd 即可，是最方便的方案。
+
+- 为什么不使用 jlink remote server？因为 sg2002 的大核虽然是异构设计，可自行切换 riscV 架构或 arm 架构，但 maixcam 固件本身使用的是 riscV 架构，所以完全不能兼容。实测在 rk3506 上可以完美兼容 jlink remote server 和 openocd server
+
+## 操作
+
+- 在尝试了无数次自行构建源码后，我发现使用官方 buildroot-sdk 编译是最方便的，直接下载 LicheeRvNano
+
+```shell
+cd ./buildroot
+make menuconfig
+# 输入/查找openocd，在hardware什么的
+# 选择jlink，stlink，daplink，实测三个都可以使用
+make openocd -j$(nproc)
+# 选择最终编译出来的openocd，以及相应的openocd scrips，最后使用scp把所有需要用到的文件传输到板子上即可，在板子上编写.cfg文件，使用 openocd -f xxx.cfg (-d)即可
+openocd -f xxx.cfg
+```
 
 # QNA
 
@@ -145,12 +188,14 @@ libcvikernel.so、libcvimath.so、libcviruntime.so：CVIModel 相关运行时、
 如果想要正常启动，还需要运行以下的线程
 /maixapp/apps/launcher/launcher_daemon（Maix 启动器守护进程）
 /maixapp/apps/launcher/launcher daemon（Maix 启动器主进程）
-/usr/bin/maixvision_server（Maix 视觉服务，核心视觉处理进程，启动该线程后可以正常连接maixvision，但还不能运行程序）
+/usr/bin/maixvision_server（Maix 视觉服务，核心视觉处理进程，启动该线程后可以正常连接 maixvision，但还不能运行程序）
 time_sync_daemon（时间同步守护进程，配套 Maix 功能运行）
 
-还需要把python脚本搞上去
+还需要把 python 脚本搞上去
 
 在文件构成上，maixcam 固件在 usr/bin，/usr/lib，/bin 目录下有所有的静态库文件，包括但不限于 yolo\lvgl\nnmodel
+
+| 由于过于复杂，笔者最终没能移植完所有的动态库（确实太多了，估计后期得大文件夹的移动会比较方便，可能后期会尝试自己移植，自己构建这个 buildroot 系统
 
 ## 6. 有时候无法使用 ssh 登录
 
@@ -180,4 +225,8 @@ Host key verification failed.
 
 ## 7. 与 milkv duo 的差异
 
-milk-v duo 与 licheerv nano 在硬件上具有些许差异，导致其固件并不通用，但可以参考其 freertos 的使用经验，以及如何编译内核
+milk-v duo 与 licheerv nano 在硬件上具有些许差异，导致其固件并不通用，但可以参考其 freertos 的使用经验，以及如何编译内核，不过对于小核的外设，两者的兼容性都不太好，很多外设都缺失，但如果使用 arduino 的话，其启用的是小小核，希望后期官方能够多开发一下实时核小核吧 ————25.11.20
+
+## 8. 使用 nn 与 vision 模块
+
+在 cmakelist 中，nn 模块必须在 vision 模块之前，否则会编译不过
