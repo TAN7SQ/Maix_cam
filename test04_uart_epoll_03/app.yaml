@@ -1,0 +1,10 @@
+id: test04_uart_epoll_03
+name: test04_uart_epoll_03 
+name[zh]:
+version: 1.0.0
+#icon: assets/hello.png
+author: TAN7
+desc: 
+desc[zh]:
+files:
+  # assets: assets
