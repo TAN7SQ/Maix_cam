@@ -7,8 +7,6 @@
 #include <unistd.h>
 #include <thread>
 
-#include <thread>
-
 using namespace maix;
 
 void epoll_thread_func(int none)
@@ -21,7 +19,7 @@ void epoll_thread_func(int none)
 
     auto set_uart_pin = [](const std::string &pin, const std::string &function)
     {
-        auto ret = peripheral::pinmap::set_pin_function(pin.c_str(), function.c_str());
+        auto ret = maix::peripheral::pinmap::set_pin_function(pin.c_str(), function.c_str());
         if (ret != err::Err::ERR_NONE)
         {
             maix::log::error("pinmap error");
@@ -35,7 +33,6 @@ void epoll_thread_func(int none)
     maix::peripheral::uart::UART serial(
         std::string(port), static_cast<int>(uart_baudrate));
 
-    // 获取底层 fd（假设库提供 get_fd()）
     int fd = serial.get_fd();
     // 创建 epoll
     int epfd = epoll_create1(0);
@@ -112,6 +109,8 @@ int _main(int argc, char *argv[])
 
     std::thread epoll_thread_fd(epoll_thread_func, 0); // 创建并启动线程
     epoll_thread_fd.join();
+    log::info("epoll_thread_func start");
+
     while (!app::need_exit())
     {
     }
