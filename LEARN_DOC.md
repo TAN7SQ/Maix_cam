@@ -55,9 +55,11 @@ toolchain : musl_t-head
    1. 使用 filezilla 等基于 fscp 文件传输的工具，或使用 scp 命令进行传输
    2. 使用 ssh 登录 maixcam 后，
 
-      - 首先关闭屏幕显示进程，使用`pa -a`命令查看所有的进程号，使用`kill <pid>`来删除进程（deamon），（一般 pid 是 296）
+      - 首先关闭屏幕显示进程，使用`pa -a`命令查看所有的进程号，使用`kill <pid>`来删除进程（deamon），（一般 pid 是 296 和 354，对应 deamon 和 maix_vison_server，这两个都会占用 cpu 和 mem 资源）
       - 然后进入 filezilla 传入的文件夹内，使用`chmod +x <execatue>`为编译好的程序增加可执行权限
       - 如果想要开机自启动的话可以通过配置` vi /etc/rc.local`来实现（包括联网等操作）
+
+   3. 使用`top -d 1`可以实现 1s 更新一次，查看当前系统的 CPU 和内存的占用率（top 会相对比 htop 占用更少的资源）
 
 ---
 

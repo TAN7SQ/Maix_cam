@@ -179,9 +179,10 @@ int _main(int argc, char *argv[])
     {
     }
 
-    epoll_thread_fd.join(); // 等这个线程执行完成后才会返回，detach之后，主线程将不会对该线程进行管理
-    // vision_thread_fd.join();
-    // calc_thread_fd.join();
+    epoll_thread_fd.join(); // join会阻塞在这里,等待这个线程执行完成后才会返回
+    // detach之后，主线程将不会对该线程进行管理
+    //  vision_thread_fd.join();
+    //  calc_thread_fd.join();
 
     log::info("Program exit");
     return 0;
