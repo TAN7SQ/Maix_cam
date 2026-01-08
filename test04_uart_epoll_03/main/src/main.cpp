@@ -5,11 +5,54 @@
 
 #include <sys/epoll.h>
 #include <unistd.h>
+
 #include <thread>
+#include <mutex>
 
 using namespace maix;
 
-void epoll_thread_func(int none)
+// ===================== 线程安全锁（避免数据竞争） =====================
+std::mutex g_uart_mutex;    // 保护串口数据
+std::mutex g_imu_mutex;     // 保护IMU数据
+std::mutex g_vision_mutex;  // 保护视觉数据
+std::mutex g_pos_vel_mutex; // 保护位置速度数据
+// std::condition_variable g_imu_cv;    // IMU数据就绪通知
+// std::condition_variable g_vision_cv; // 视觉数据就绪通知
+
+int set_thread_priority(std::thread &thread, int policy, int priority)
+{
+    if (!thread.joinable())
+    {
+        log::error("thread not joinable");
+        return -1;
+    }
+    pthread_t tid = thread.native_handle(); // 获取线程的原生句柄
+
+    // 1. 设置调度策略
+    struct sched_param param;
+    memset(&param, 0, sizeof(param));
+    param.sched_priority = priority;
+
+    // 2. 设置调度策略和优先级
+    if (pthread_setschedparam(tid, policy, &param) != 0)
+    {
+        log::error("pthread_setschedparam failed");
+        return -1;
+    }
+
+    // 3. 获取当前线程的调度策略和优先级，验证设置是否成功
+    struct sched_param current_param;
+    if (pthread_getschedparam(tid, &policy, &current_param) != 0)
+    {
+        log::error("pthread_getschedparam failed");
+        return -1;
+    }
+    log::info("thread policy: %d, priority: %d", policy, current_param.sched_priority);
+
+    return 0;
+}
+
+void epoll_thread_func(void)
 {
     log::info("epoll start");
 
@@ -77,6 +120,11 @@ void epoll_thread_func(int none)
                     if (rx_len > 0)
                     {
                         log::info("received %d: \"%s\"", rx_len, rxBuff);
+
+                        // 线程安全，写共享数据加锁
+                        std::lock_guard<std::mutex> lock(g_uart_mutex);
+                        // TODO: 添加队列
+
                         log::print(log::LogLevel::LEVEL_INFO, "hex:\n");
                         for (int j = 0; j < rx_len; ++j)
                         {
@@ -102,18 +150,38 @@ void epoll_thread_func(int none)
     close(epfd);
 }
 
+// TODO:新增线程2：视觉处理线程 =====================
+void vision_thread_func()
+{
+}
+
+// TODO:新增线程3：位置/速度解算线程 =====================
+void calc_thread_func()
+{
+}
+
 // 在这个线程里面就专门用来跑 epoll_wait，然后根据事件类型调用相应的处理函数
 int _main(int argc, char *argv[])
 {
     log::info("Program start");
 
-    std::thread epoll_thread_fd(epoll_thread_func, 0); // 创建并启动线程
-    epoll_thread_fd.join();
-    log::info("epoll_thread_func start");
+    std::thread epoll_thread_fd(epoll_thread_func); // 构造函数，后面跟着参数
+    std::thread vision_thread_fd(vision_thread_func);
+    std::thread calc_thread_fd(calc_thread_func);
+
+    set_thread_priority(vision_thread_fd, SCHED_FIFO, 90); // 视觉最高优先级
+    set_thread_priority(calc_thread_fd, SCHED_FIFO, 80);
+    set_thread_priority(epoll_thread_fd, SCHED_FIFO, 80);
+
+    log::info("epoll_thread_func start, press Ctrl+C to exit\r\n");
 
     while (!app::need_exit())
     {
     }
+
+    epoll_thread_fd.join(); // 等这个线程执行完成后才会返回，detach之后，主线程将不会对该线程进行管理
+    // vision_thread_fd.join();
+    // calc_thread_fd.join();
 
     log::info("Program exit");
     return 0;
