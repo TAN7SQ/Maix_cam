@@ -39,6 +39,7 @@ namespace mVision
                 delete img;
                 continue;
             }
+            
             disp.show(*img);
             delete img;
             thread::sleep_ms(10);
