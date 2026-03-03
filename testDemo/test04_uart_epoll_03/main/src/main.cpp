@@ -1,13 +1,13 @@
-#include "maix_basic.hpp"
 #include "main.h"
-#include "maix_uart.hpp"
+#include "maix_basic.hpp"
 #include "maix_pinmap.hpp"
+#include "maix_uart.hpp"
 
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include <thread>
 #include <mutex>
+#include <thread>
 
 using namespace maix;
 
@@ -21,8 +21,7 @@ std::mutex g_pos_vel_mutex; // 保护位置速度数据
 
 int set_thread_priority(std::thread &thread, int policy, int priority)
 {
-    if (!thread.joinable())
-    {
+    if (!thread.joinable()) {
         log::error("thread not joinable");
         return -1;
     }
@@ -34,16 +33,14 @@ int set_thread_priority(std::thread &thread, int policy, int priority)
     param.sched_priority = priority;
 
     // 2. 设置调度策略和优先级
-    if (pthread_setschedparam(tid, policy, &param) != 0)
-    {
+    if (pthread_setschedparam(tid, policy, &param) != 0) {
         log::error("pthread_setschedparam failed");
         return -1;
     }
 
     // 3. 获取当前线程的调度策略和优先级，验证设置是否成功
     struct sched_param current_param;
-    if (pthread_getschedparam(tid, &policy, &current_param) != 0)
-    {
+    if (pthread_getschedparam(tid, &policy, &current_param) != 0) {
         log::error("pthread_getschedparam failed");
         return -1;
     }
@@ -51,6 +48,8 @@ int set_thread_priority(std::thread &thread, int policy, int priority)
 
     return 0;
 }
+
+#include "AuxiliaryMath.hpp"
 
 void epoll_thread_func(void)
 {
@@ -60,11 +59,9 @@ void epoll_thread_func(void)
     const auto port = "/dev/ttyS1"s;
     constexpr long uart_baudrate = 1500000;
 
-    auto set_uart_pin = [](const std::string &pin, const std::string &function)
-    {
+    auto set_uart_pin = [](const std::string &pin, const std::string &function) {
         auto ret = maix::peripheral::pinmap::set_pin_function(pin.c_str(), function.c_str());
-        if (ret != err::Err::ERR_NONE)
-        {
+        if (ret != err::Err::ERR_NONE) {
             maix::log::error("pinmap error");
             return false;
         }
@@ -73,14 +70,12 @@ void epoll_thread_func(void)
     set_uart_pin("A19", "UART1_TX");
     set_uart_pin("A18", "UART1_RX");
 
-    maix::peripheral::uart::UART serial(
-        std::string(port), static_cast<int>(uart_baudrate));
+    maix::peripheral::uart::UART serial(std::string(port), static_cast<int>(uart_baudrate));
 
     int fd = serial.get_fd();
     // 创建 epoll
     int epfd = epoll_create1(0);
-    if (epfd == -1)
-    {
+    if (epfd == -1) {
         log::error("epoll_create1 failed");
     }
 
@@ -88,57 +83,49 @@ void epoll_thread_func(void)
     ev.events = EPOLLIN; // 监听可读
     // ev.events = EPOLLIN | EPOLLOUT; // 监听可读和可写
     ev.data.fd = fd;
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1)
-    {
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
         log::error("epoll_ctl failed");
     }
 
     std::string msg = "hello\r\n";
 
-    while (!app::need_exit())
-    {
+    /********************************** */
+    xAxisIMU::IMUAttitude imuAttitude;
+
+    while (!app::need_exit()) {
         struct epoll_event events[10];
         int nfds = epoll_wait(epfd, events, 10, 1000); // 1秒超时
-        if (nfds == 0)
-        {
+        if (nfds == 0) {
             // 超时无事件
             continue;
         }
-        if (nfds == -1)
-        {
+        if (nfds == -1) {
             log::error("epoll_wait error");
             break;
         }
 
-        for (int i = 0; i < nfds; i++)
-        {
-            if (events[i].data.fd == fd)
-            {
-                if (events[i].events & EPOLLIN)
-                {
+        for (int i = 0; i < nfds; i++) {
+            if (events[i].data.fd == fd) {
+                if (events[i].events & EPOLLIN) {
                     int rx_len = serial.read(rxBuff, sizeof(rxBuff));
-                    if (rx_len > 0)
-                    {
-                        log::info("received %d: \"%s\"", rx_len, rxBuff);
+                    if (rx_len > 0) {
+                        // log::info("received %d: \"%s\"", rx_len, rxBuff);
 
                         // 线程安全，写共享数据加锁
                         std::lock_guard<std::mutex> lock(g_uart_mutex);
-                        // TODO: 添加队列
-
-                        log::print(log::LogLevel::LEVEL_INFO, "hex:\n");
-                        for (int j = 0; j < rx_len; ++j)
-                        {
-                            log::print(log::LogLevel::LEVEL_INFO, "%02x ", rxBuff[j]);
-                        }
+                        memcpy(&imuAttitude, rxBuff, sizeof(imuAttitude));
+                        log::info("parsed attitude: roll=%.2f, pitch=%.2f, yaw=%.2f\n",
+                                  imuAttitude.euler.roll,
+                                  imuAttitude.euler.pitch,
+                                  imuAttitude.euler.yaw);
                         log::print(log::LogLevel::LEVEL_INFO, "\n\n");
                         // 回写
-                        serial.write(rxBuff, rx_len);
+                        // serial.write(rxBuff, rx_len);
                         // 填入串口接收队列
                     }
                 }
 
-                if (events[i].events & EPOLLOUT)
-                {
+                if (events[i].events & EPOLLOUT) {
                     // 可写时发送数据
                     serial.write(msg.c_str());
                     log::info("sent %s", msg.c_str());
@@ -150,12 +137,10 @@ void epoll_thread_func(void)
     close(epfd);
 }
 
-// TODO:新增线程2：视觉处理线程 =====================
 void vision_thread_func()
 {
 }
 
-// TODO:新增线程3：位置/速度解算线程 =====================
 void calc_thread_func()
 {
 }
@@ -175,8 +160,7 @@ int _main(int argc, char *argv[])
 
     log::info("epoll_thread_func start, press Ctrl+C to exit\r\n");
 
-    while (!app::need_exit())
-    {
+    while (!app::need_exit()) {
     }
 
     epoll_thread_fd.join(); // join会阻塞在这里,等待这个线程执行完成后才会返回

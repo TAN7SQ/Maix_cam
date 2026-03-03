@@ -4,11 +4,8 @@
   （这里仅介绍需要下载的基础工具和原理，并不介绍具体的安装下载方法，自行百度即可）
 
 - 需要下载的软件：wsl、ubuntu20.04、vscode、filezilla
-
   1. 在 MicroSoft Store 下载 wsl2 和 ubuntu20.04 后进行安装，能够在 powershell 中进入 ubuntu 即可
-
   - 注意 wsl 默认装在 c 盘，可以直接在设置中直接移动 wsl 到你需要的盘符，不推荐在 c 盘进行开发
-
   2. [samba 安装教程](https://wiki.lckfb.com/zh-hans/tspi-rk3566/project-case/fat-little-cell-phone/programming-environment-setup.html#samba%E6%90%AD%E5%BB%BA)，将 wsl 的根文件映射到 windows 的盘符（这里我映射到 z 盘，看个人喜好即可），使得我们可以在 windows 下直接看到 wsl 下的文件就像是在操作自己本地的盘符一样，由于是基于内部的网卡连接，所以极其稳定
   3. 在 vscode 中下载 wsl 插件，即可实现在 vscode 启动 wsl，可直接在 vscode 的 terminal 中进行命令的输入，无需再麻烦的使用 ssh 登录 wsl（当然也是可以的）
   4. 在 vscode 中登录 wsl，在第一次下载 maixcdk 的时候可能会遇到一些问题，如在使用 pip 的时候需要先创建虚拟环境，在虚拟环境中使用 pip(这是 ubuntu 20.04 的新特性，当然也可以直接使用 sudo 命令来强制下载，但为了不污染环境，尽量创建虚拟环境后再使用 python)，后续的所有操作都要在虚拟环境中进行
@@ -51,10 +48,8 @@ toolchain : musl_t-head
 ```
 
 4. 上传：
-
    1. 使用 filezilla 等基于 fscp 文件传输的工具，或使用 scp 命令进行传输
    2. 使用 ssh 登录 maixcam 后，
-
       - 首先关闭屏幕显示进程，使用`pa -a`命令查看所有的进程号，使用`kill <pid>`来删除进程（deamon），（一般 pid 是 296 和 354，对应 deamon 和 maix_vison_server，这两个都会占用 cpu 和 mem 资源）
       - 然后进入 filezilla 传入的文件夹内，使用`chmod +x <execatue>`为编译好的程序增加可执行权限
       - 如果想要开机自启动的话可以通过配置` vi /etc/rc.local`来实现（包括联网等操作）
@@ -63,6 +58,12 @@ toolchain : musl_t-head
 
 ---
 
+# 如何连接wifi
+
+| （推荐使用STA模式，由电脑或者路由开启服务器）
+
+## 使用电脑热点
+
 # 远程调试 STM32
 
 ## 前言
@@ -70,11 +71,9 @@ toolchain : musl_t-head
 - 由于 Maixcam 固件本身没有加载 Rt-Linux 的补丁，且 sg2002 的 Rtos 核很多外设无法使用（目前官方只有 uart 和 i2c 的 demo ———— 25.11.20），且 sg2002 本身的外设就不多，除去 mipi-csi，sdio0，sdio1，eth，uart，emmc，实则剩下的可用引脚不多，所以想要全部使用 sg2002 来控制不仅难度大、sdk 不完善，而且本身可拓展性也不强，故舍弃掉
   - 综上所述，在现在这个时间点来看，往前看往后看，使用 stm32/esp32 + sg2002 无疑是一个更佳的选择（这里先不讨论 esp32 的情况）
 - 显然，假如只使用 sg2002 的控制+视觉，那么可以很轻易的实现基于 ssh 的无线调试方式，想要使用 sg2002+stm32，很自然的需要解决烧录的问题，以下是几个解决方法
-
   1. 静态烧录口烧录 + sg2002 转发串口调试
   2. 板载装甲板无线烧录器（基于 esp32s3）
   3. link + sg2002 + openocd server
-
   - 方案一的坏处是无法远程烧录，必须使用烧录器连接烧录，且调试也不方便；方案二基于 esp32s3 其本身的 2.4Ghz 的频段调试，也很容易受到干扰，且不仅需要无线板载烧录器，其还需要搭配主从烧录器来使用，不够稳定；方案三的好处是直接使用 openocd 开启 gdb server ，在同一局域网的情况下就能实现烧录与调试（但目前似乎因为 ozone 使用的是拓展的 gdb，openocd 的 gdb 是标准的 gdb，不能兼容 ozone ，后续尝试编译更加完整的 openocd ），方案三不需要编写其他额外的代码，可显著避免其他的问题，只要电脑开热点或者电脑使用网线连接 sg2002、开启 openocd 即可，是最方便的方案。
 
 - 为什么不使用 jlink remote server？因为 sg2002 的大核虽然是异构设计，可自行切换 riscV 架构或 arm 架构，但 maixcam 固件本身使用的是 riscV 架构，所以完全不能兼容。实测在 rk3506 上可以完美兼容 jlink remote server 和 openocd server

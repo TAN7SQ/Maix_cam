@@ -4,7 +4,9 @@
 
 #include <thread>
 #include "maix_thread.hpp"
+
 #include "mVision.hpp"
+#include "mFusion.hpp"
 
 using namespace maix;
 
@@ -14,6 +16,8 @@ int _main(int argc, char *argv[])
     log::info("Program start");
 
     std::thread vision_thread_fd(mVision::vision_thread);
+
+    std::thread fusion_thread_fd(mFusion::fusion_thread);
 
     while (!app::need_exit())
     {

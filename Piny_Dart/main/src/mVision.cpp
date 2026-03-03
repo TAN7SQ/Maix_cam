@@ -39,6 +39,8 @@ namespace mVision
                 delete img;
                 continue;
             }
+
+            // TODO：视觉识别逻辑
             
             disp.show(*img);
             delete img;
