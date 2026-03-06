@@ -1,7 +1,8 @@
 
 #include "main.h"
 
-#include "basic.hpp"
+#include "application.hpp"
+#include "_basic.hpp"
 
 using namespace maix;
 
@@ -10,9 +11,9 @@ int _main(int argc, char *argv[])
 
     log::info("Program start");
 
-    while (!app::need_exit()) {
-        maix::thread::sleep_ms(1000);
-    }
+    App app = App();
+    app.appSchedule();
+
     log::info("Program exit");
     return 0;
 }

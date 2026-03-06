@@ -243,6 +243,9 @@ Host key verification failed.
 
 执行`ssh-keygen -R "ssh的ip地址"`重置主机密钥，再次连接即可
 
+### 6.1 有时候ssh在终端卡住，无法退出
+先按一下 ENTER ，再输入 ~.
+
 ## 7. 与 milkv duo 的差异
 
 milk-v duo 与 licheerv nano 在硬件上具有些许差异，导致其固件并不通用，但可以参考其 freertos 的使用经验，以及如何编译内核，不过对于小核的外设，两者的兼容性都不太好，很多外设都缺失，但如果使用 arduino 的话，其启用的是小小核，希望后期官方能够多开发一下实时核小核吧 ————25.11.20
