@@ -13,6 +13,7 @@
 #include "maix_display.hpp"
 #include "maix_image_cv.hpp"
 #include "maix_thread.hpp"
+#include "maix_video.hpp"
 
 #include <thread>
 

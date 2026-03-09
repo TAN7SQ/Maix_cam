@@ -28,16 +28,16 @@ namespace mUtiles
             {
 
                 std::lock_guard<std::mutex> lock(m_mutex);
-                m_queue.push(std::move(data)); // 使用移动语义，减少拷贝
+                m_queue.push(std::move(data)); 
             }
-            m_cond.notify_one(); // 提前释放锁，并通知等待线程
+            m_cond.notify_one(); 
         }
 
         QueueType pop()
         {
             std::unique_lock<std::mutex> lock(m_mutex);
             m_cond.wait(lock, [this]
-                        { return !m_queue.empty(); }); // 等待直到队列非空
+                        { return !m_queue.empty(); }); 
 
             QueueType val = std::move(m_queue.front());
             m_queue.pop();

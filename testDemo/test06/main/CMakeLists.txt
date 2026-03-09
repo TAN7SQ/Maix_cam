@@ -1,30 +1,14 @@
 ############### Add include ###################
-list(APPEND ADD_INCLUDE 
-                        "include"
+list(APPEND ADD_INCLUDE "include"
     )
-list(APPEND ADD_PRIVATE_INCLUDE 
-                        "algorithm/include"
-                        "basic"
-                        "basic/log"
-                        "app"
-                        "app/vision"
-                        "app/fusion"
-                        )
+list(APPEND ADD_PRIVATE_INCLUDE "")
 ###############################################
 
 ############ Add source files #################
 # list(APPEND ADD_SRCS  "src/main.c"
 #                       "src/test.c"
 #     )
-append_srcs_dir(ADD_SRCS 
-                        "src"
-                        "algorithm/src"
-                        "basic"
-                        "basic/log"
-                        "app"
-                        "app/vision"
-                        "app/fusion"
-                        )       # append source file in src dir to var ADD_SRCS
+append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD_SRCS
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test2.c")
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")
@@ -39,7 +23,7 @@ append_srcs_dir(ADD_SRCS
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic vision ext_dev)
+list(APPEND ADD_REQUIREMENTS basic)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
