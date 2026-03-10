@@ -24,14 +24,15 @@ private:
     std::thread *pRecoderThread = nullptr;
     void cameraThread(maix::camera::Camera *cam);
     void visionThread();
-    void recoderThread(maix::camera::Camera *recordCam);
+    void recoderThread();
 
     // 引导灯实际尺寸
     const float TARGET_SIZE = 5.0f; // cm
     // 摄像头内参
     const float FOCAL_LENGTH = 1000.0f; // 假设焦距为1000像素
-    const int IMG_WIDTH = 640;
-    const int IMG_HEIGHT = 480;
+    const int CAM_FPS = 60;
+    const int IMG_WIDTH = 512;
+    const int IMG_HEIGHT = 320;
 
     FPSCount fps;
     FrameQueue frameQueue{6};

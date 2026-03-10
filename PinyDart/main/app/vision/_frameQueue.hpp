@@ -18,7 +18,7 @@ public:
         std::unique_lock<std::mutex> lock(mtx);
 
         if (queue.size() >= max_size) {
-            queue.pop();
+            queue.pop(); // 丢掉最旧帧
         }
 
         queue.push(img);
