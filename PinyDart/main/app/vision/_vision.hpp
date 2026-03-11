@@ -9,7 +9,7 @@ class Vision
 public:
     static constexpr const char *TAG = "Vision";
     void visionSchedule(void);
-    Vision() : fps() {};
+    Vision() : cameraFps(), visonFps() {};
 
     ~Vision();
 
@@ -30,11 +30,12 @@ private:
     const float TARGET_SIZE = 5.0f; // cm
     // 摄像头内参
     const float FOCAL_LENGTH = 1000.0f; // 假设焦距为1000像素
-    const int CAM_FPS = 90;
-    const int IMG_WIDTH = 512;
-    const int IMG_HEIGHT = 320;
+    const int CAM_FPS = 80;
+    const int IMG_WIDTH = 640;
+    const int IMG_HEIGHT = 360;
 
-    FPSCount fps;
+    FPSCount cameraFps;
+    FPSCount visonFps;
     FrameQueue frameQueue{6};
     FrameQueue recordQueue{6};
 };

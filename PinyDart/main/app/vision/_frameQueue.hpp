@@ -9,35 +9,30 @@
 class FrameQueue
 {
 public:
-    FrameQueue(size_t max_size = 5) : max_size(max_size)
+    FrameQueue(size_t max_size = 5)
+        : max_size(max_size)
     {
     }
 
     void push(std::shared_ptr<maix::image::Image> img)
     {
-        std::unique_lock<std::mutex> lock(mtx);
+        std::lock_guard<std::mutex> lock(mtx);
 
-        if (queue.size() >= max_size) {
-            queue.pop(); // 丢掉最旧帧
-        }
+        if(queue.size() >= max_size)
+            queue.pop();
 
         queue.push(img);
-        cv.notify_one();
-    }
 
-    size_t size()
-    {
-        std::unique_lock<std::mutex> lock(mtx);
-        return queue.size();
+        cv.notify_one();
     }
 
     std::shared_ptr<maix::image::Image> pop()
     {
         std::unique_lock<std::mutex> lock(mtx);
 
-        while (queue.empty()) {
-            cv.wait(lock);
-        }
+        cv.wait(lock,[this]{
+            return !queue.empty();
+        });
 
         auto img = queue.front();
         queue.pop();
@@ -45,9 +40,35 @@ public:
         return img;
     }
 
+    std::shared_ptr<maix::image::Image> pop_latest()
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+
+        cv.wait(lock,[this]{
+            return !queue.empty();
+        });
+
+        while(queue.size() > 1)
+            queue.pop();
+
+        auto img = queue.front();
+        queue.pop();
+
+        return img;
+    }
+
+    size_t size()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return queue.size();
+    }
+
 private:
+
     std::queue<std::shared_ptr<maix::image::Image>> queue;
+
     std::mutex mtx;
     std::condition_variable cv;
+
     size_t max_size;
 };
