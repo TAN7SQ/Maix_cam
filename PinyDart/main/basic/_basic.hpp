@@ -69,3 +69,24 @@ private:
 
     char fps_str[32] = {0};
 };
+
+#include <fstream>
+#include <string>
+class Temp
+{
+public:
+    static std::string get_cpu_temp()
+    {
+        std::ifstream file("/sys/class/thermal/thermal_zone0/temp");
+        if (!file.is_open())
+            return "error";
+
+        int temp;
+        file >> temp;
+
+        char buf[64];
+        sprintf(buf, "T:%.1f", temp / 1000.0f);
+
+        return buf;
+    }
+};

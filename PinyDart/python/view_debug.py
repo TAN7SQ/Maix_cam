@@ -69,6 +69,7 @@ class UDPMJPEGViewer(QWidget):
         # UDP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("0.0.0.0", self.port))
+        # self.sock.bind(("10.104.30.100", self.port))
         self.sock.settimeout(0.5)
         self.last_recv_time = time.time()
 

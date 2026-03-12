@@ -15,14 +15,14 @@ public:
 
 private:
     /* Camera */
-    maix::camera::Camera *cam;
-    maix::camera::Camera *camRecord = nullptr;
+    // maix::camera::Camera *cam;
+    // maix::camera::Camera *camRecord = nullptr;
 
     /* Threads */
     std::thread *pCameraThread = nullptr;
     std::thread *pVisionThread = nullptr;
     std::thread *pRecoderThread = nullptr;
-    void cameraThread(maix::camera::Camera *cam);
+    void cameraThread(maix::camera::Camera *pcam);
     void visionThread();
     void recoderThread();
 

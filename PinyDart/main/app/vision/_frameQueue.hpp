@@ -9,12 +9,17 @@
 class FrameQueue
 {
 public:
+    FrameQueue(size_t max_size = 3) : max_size(max_size)
+    {
+    }
+
     void push(std::shared_ptr<maix::image::Image> img)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
 
-        while (!queue.empty())
-            queue.pop();
+        if (queue.size() >= max_size) {
+            queue.pop(); // 丢掉最旧帧
+        }
 
         queue.push(img);
         cv.notify_one();
@@ -30,33 +35,35 @@ public:
 
         auto img = queue.front();
         queue.pop();
-
         return img;
+    }
+
+    size_t size()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return queue.size();
     }
 
 private:
     std::queue<std::shared_ptr<maix::image::Image>> queue;
+
     std::mutex mtx;
     std::condition_variable cv;
+
+    size_t max_size;
 };
 
 // class FrameQueue
 // {
 // public:
-//     FrameQueue(size_t max_size = 5)
-//         : max_size(max_size)
-//     {
-//     }
-
 //     void push(std::shared_ptr<maix::image::Image> img)
 //     {
 //         std::lock_guard<std::mutex> lock(mtx);
 
-//         if(queue.size() >= max_size)
+//         while (!queue.empty())
 //             queue.pop();
 
 //         queue.push(img);
-
 //         cv.notify_one();
 //     }
 
@@ -64,7 +71,7 @@ private:
 //     {
 //         std::unique_lock<std::mutex> lock(mtx);
 
-//         cv.wait(lock,[this]{
+//         cv.wait(lock, [this] {
 //             return !queue.empty();
 //         });
 
@@ -72,37 +79,10 @@ private:
 //         queue.pop();
 
 //         return img;
-//     }
-
-//     std::shared_ptr<maix::image::Image> pop_latest()
-//     {
-//         std::unique_lock<std::mutex> lock(mtx);
-
-//         cv.wait(lock,[this]{
-//             return !queue.empty();
-//         });
-
-//         while(queue.size() > 1)
-//             queue.pop();
-
-//         auto img = queue.front();
-//         queue.pop();
-
-//         return img;
-//     }
-
-//     size_t size()
-//     {
-//         std::lock_guard<std::mutex> lock(mtx);
-//         return queue.size();
 //     }
 
 // private:
-
 //     std::queue<std::shared_ptr<maix::image::Image>> queue;
-
 //     std::mutex mtx;
 //     std::condition_variable cv;
-
-//     size_t max_size;
 // };

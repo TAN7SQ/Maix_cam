@@ -6,27 +6,32 @@ using namespace maix;
 
 void Vision::visionSchedule(void)
 {
-    cam = new camera::Camera(IMG_WIDTH,
-                             IMG_HEIGHT, //
-                             image::Format::FMT_RGB888,
-                             nullptr,
-                             CAM_FPS,
-                             3,
-                             true,
-                             true); // 实测只有单摄像头模式才能不裁切
 
-    cam->exp_mode(maix::camera::AeMode::Manual);  // 设置为手动曝光模式
-    cam->awb_mode(maix::camera::AwbMode::Manual); // 设置为手动白平衡模式
+    static camera::Camera pCam(IMG_WIDTH,
+                               IMG_HEIGHT, //
+                               image::Format::FMT_RGB888,
+                               nullptr,
+                               CAM_FPS,
+                               3,
+                               true,
+                               true); // 实测只有单摄像头模式才能不裁切
 
-    cam->exposure(20);                              // 设置固定的曝光时间，单位us
-    cam->set_wb_gain({0.12f, 0.07f, 0.07f, 0.11f}); // 设置固定的白平衡增益，顺序是r, gr, gb, b
-    cam->gain(4096);                                // 设置固定的增益数值
+    if (!pCam.is_opened()) {
+        printf("Camera open failed!\n");
+    }
 
-    cam->vflip(1);   // 垂直翻转
-    cam->hmirror(1); // 水平镜像
+    pCam.exp_mode(maix::camera::AeMode::Manual);
+    // // pCam.awb_mode(maix::camera::AwbMode::Manual);
+    pCam.exposure(200);
+    pCam.iso(20);
+
+    pCam.vflip(1);   // 垂直翻转
+    pCam.hmirror(1); // 水平镜像
+
+    // Log::warn(TAG, "exp:%d,gain:%d", pCam.exposure(-1), pCam.gain(-1));
 
     if (pCameraThread == nullptr) {
-        pCameraThread = new std::thread(&Vision::cameraThread, this, cam);
+        pCameraThread = new std::thread(&Vision::cameraThread, this, &pCam);
         pthread_setname_np(pCameraThread->native_handle(), "cameraThread");
     }
     if (pVisionThread == nullptr) {
@@ -42,22 +47,28 @@ void Vision::visionSchedule(void)
 /**
  *
  */
-void Vision::cameraThread(camera::Camera *cam)
+void Vision::cameraThread(camera::Camera *pcam)
 {
     Log::info(TAG, "camera thread start");
+    pcam->skip_frames(10);
 
     while (!app::need_exit()) {
         try {
-            maix::image::Image *raw = cam->read();
+            maix::image::Image *raw = pcam->read();
 
-            if (!raw)
+            if (!raw) {
+                maix::thread::sleep_ms(1);
                 continue;
+            }
 
             std::shared_ptr<image::Image> img(raw);
 
             frameQueue.push(img);
+            // delete raw;
 
             cameraFps.tick();
+            maix::thread::sleep_ms(2);
+
         } catch (...) {
             Log::error(TAG, "camera read error");
         }
@@ -76,20 +87,28 @@ void Vision::visionThread()
     while (!app::need_exit()) {
         auto img = frameQueue.pop();
 
-        if (!img)
+        if (!img) {
+            maix::thread::sleep_ms(1);
             continue;
+        }
+        auto new_img = std::shared_ptr<image::Image>(img->copy());
 
         try {
-            auto blobs = img->find_blobs(
-                greenThresholds, false, {0, 0, img->width(), img->height()}, 2, 2, 50, 50, true, 10, 16, 16);
+            // auto blobs = img->find_blobs(
+            //     greenThresholds, false, {0, 0, img->width(), img->height()}, 2, 2, 50, 50, true, 10, 16, 16);
 
-            for (auto &blob : blobs) {
-                img->draw_rect(blob.x(), blob.y(), blob.w(), blob.h(), maix::image::COLOR_RED, 2);
-            }
+            // for (auto &blob : blobs) {
+            //     img->draw_rect(blob.x(), blob.y(), blob.w(), blob.h(), maix::image::COLOR_RED, 2);
+            // }
 
-            recordQueue.push(img);
+            new_img->draw_string(10, 10, (std::string("C:") + cameraFps.str()).c_str(), image::Color(255, 0, 0));
+            new_img->draw_string(10, 22, (std::string("V:") + visonFps.str()).c_str(), image::Color(255, 0, 0));
+            new_img->draw_string(10, 34, Temp::get_cpu_temp().c_str(), image::Color(255, 0, 0));
 
+            recordQueue.push(new_img);
             visonFps.tick();
+            maix::thread::sleep_ms(2);
+
         } catch (...) {
             Log::error(TAG, "vision process error");
         }
@@ -103,24 +122,6 @@ void Vision::visionThread()
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#include <fstream>
-#include <string>
-
-std::string get_cpu_temp()
-{
-    std::ifstream file("/sys/class/thermal/thermal_zone0/temp");
-    if (!file.is_open())
-        return "error";
-
-    int temp;
-    file >> temp;
-
-    char buf[64];
-    sprintf(buf, "T: %.1f", temp / 1000.0f);
-
-    return buf;
-}
 
 void Vision::recoderThread()
 {
@@ -142,14 +143,16 @@ void Vision::recoderThread()
 
     uint64_t last_send = 0;
 
-    const int TARGET_FPS = 10;
+    const int TARGET_FPS = 15;
     const int FRAME_INTERVAL = 1000 / TARGET_FPS;
 
     while (!app::need_exit()) {
         auto img = recordQueue.pop();
 
-        if (!img)
+        if (!img) {
+            maix::thread::sleep_ms(1);
             continue;
+        }
 
         uint64_t now = time::ticks_ms();
 
@@ -159,9 +162,8 @@ void Vision::recoderThread()
         last_send = now;
 
         try {
-            img->draw_string(10, 10, (std::string("C:") + cameraFps.str()).c_str(), image::Color(255, 0, 0));
-            img->draw_string(10, 22, (std::string("V:") + visonFps.str()).c_str(), image::Color(255, 0, 0));
-            img->draw_string(10, 34, get_cpu_temp().c_str(), image::Color(255, 0, 0));
+            // auto rgb = img->to_format(image::Format::FMT_RGB888);
+
             image::Image *jpeg = img->to_jpeg(60);
             if (!jpeg)
                 continue;
@@ -170,9 +172,11 @@ void Vision::recoderThread()
             sendto(sock, data, size, 0, (struct sockaddr *)&addr, sizeof(addr));
 
             delete jpeg;
+            // delete rgb;
         } catch (...) {
             Log::error(TAG, "recorder error");
         }
+        maix::thread::sleep_ms(1);
     }
 }
 
@@ -293,7 +297,6 @@ void Vision::recoderThread()
 
 Vision::~Vision()
 {
-    delete cam;
 
     if (pVisionThread) {
         if (pVisionThread->joinable()) {
