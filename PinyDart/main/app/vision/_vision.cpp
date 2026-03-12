@@ -23,7 +23,8 @@ void Vision::visionSchedule(void)
     pCam.exp_mode(maix::camera::AeMode::Manual);
     // // pCam.awb_mode(maix::camera::AwbMode::Manual);
     pCam.exposure(200);
-    pCam.iso(20);
+    pCam.constrast(100);
+    pCam.iso(15);
 
     pCam.vflip(1);   // 垂直翻转
     pCam.hmirror(1); // 水平镜像
@@ -82,8 +83,6 @@ void Vision::visionThread()
 {
     Log::info(TAG, "vision thread start");
 
-    std::vector<std::vector<int>> greenThresholds = {{0, 80, -120, -10, 0, 30}};
-
     while (!app::need_exit()) {
         auto img = frameQueue.pop();
 
@@ -94,16 +93,8 @@ void Vision::visionThread()
         auto new_img = std::shared_ptr<image::Image>(img->copy());
 
         try {
-            // auto blobs = img->find_blobs(
-            //     greenThresholds, false, {0, 0, img->width(), img->height()}, 2, 2, 50, 50, true, 10, 16, 16);
-
-            // for (auto &blob : blobs) {
-            //     img->draw_rect(blob.x(), blob.y(), blob.w(), blob.h(), maix::image::COLOR_RED, 2);
-            // }
-
-            new_img->draw_string(10, 10, (std::string("C:") + cameraFps.str()).c_str(), image::Color(255, 0, 0));
-            new_img->draw_string(10, 22, (std::string("V:") + visonFps.str()).c_str(), image::Color(255, 0, 0));
-            new_img->draw_string(10, 34, Temp::get_cpu_temp().c_str(), image::Color(255, 0, 0));
+            Vision::targetDetect(new_img);
+            Vision::debugInfo(new_img);
 
             recordQueue.push(new_img);
             visonFps.tick();
@@ -113,6 +104,135 @@ void Vision::visionThread()
             Log::error(TAG, "vision process error");
         }
     }
+}
+
+/**
+ * 检测所有像素
+ */
+float Vision::calcBlobBrightness(maix::image::Image *img, maix::image::Blob &blob)
+{
+    int sum = 0;
+    int count = 0;
+    const int step = 2;
+    for (int y = blob.y(); y < blob.y() + blob.h(); y += step) {
+        for (int x = blob.x(); x < blob.x() + blob.w(); x += step) {
+            auto c = img->get_pixel(x, y);
+
+            int r = c[0];
+            int g = c[1];
+            int b = c[2];
+
+            int yv = (299 * r + 587 * g + 114 * b) / 1000;
+
+            sum += yv;
+            count++;
+        }
+    }
+
+    return (float)sum / count;
+}
+
+float Vision::calcBlobCenterBrightness(maix::image::Image *img, maix::image::Blob &blob)
+{
+    int cx = blob.x() + blob.w() / 2;
+    int cy = blob.y() + blob.h() / 2;
+
+    const int radius = 2; // 5x5
+    int sum = 0;
+    int count = 0;
+
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            int x = cx + dx;
+            int y = cy + dy;
+
+            if (x < 0 || y < 0 || x >= img->width() || y >= img->height())
+                continue;
+
+            auto c = img->get_pixel(x, y);
+
+            int r = c[0];
+            int g = c[1];
+            int b = c[2];
+
+            // 过滤白色反光、黄色灯、噪声
+            // if (g < r * 1.2 || g < b * 1.2)
+            //     continue;
+            int yv = (299 * r + 587 * g + 114 * b) / 1000;
+
+            sum += yv;
+            count++;
+        }
+    }
+
+    if (count == 0)
+        return 0;
+
+    return (float)sum / count;
+}
+
+void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
+{
+    static std::vector<std::vector<int>> greenThresholds = {{40, 100, -120, -10, 0, 30}};
+    // static std::vector<std::vector<int>> greenThresholds = {{0, 80, -120, -10, 0, 30}};
+
+    // 下一步可以加上动态ROI
+    const int layROI = 30;
+
+    auto blobs = img->find_blobs(greenThresholds,
+                                 false,
+                                 {layROI, layROI, img->width() - layROI, img->height() - layROI},
+                                 2,
+                                 2,
+                                 10,
+                                 5,
+                                 false,
+                                 0,
+                                 0,
+                                 0);
+
+    maxblob.pixels = 0;
+    maxblob.brightness = 0;
+
+    float bestScore = 0;
+
+    for (auto &blob : blobs) {
+
+        float density = blob.pixels() / float(blob.w() * blob.h());
+
+        if (density > 0.9 && density < 0.25)
+            continue;
+        float brightness = calcBlobCenterBrightness(img.get(), blob);
+
+        // 评价函数：亮度 * 像素数
+        float score = brightness * brightness * blob.pixels();
+
+        if (score > bestScore) {
+            bestScore = score;
+
+            maxblob.x = blob.x();
+            maxblob.y = blob.y();
+            maxblob.w = blob.w();
+            maxblob.h = blob.h();
+            maxblob.pixels = blob.pixels();
+            maxblob.brightness = brightness;
+            // printf("blob pixels=%d density=%.2f bright=%.1f\n", blob.pixels(), density, brightness);
+        }
+    }
+
+    if (maxblob.pixels > 0) {
+        int cx = maxblob.x + maxblob.w / 2;
+        int cy = maxblob.y + maxblob.h / 2;
+        img->draw_circle(cx, cy, maxblob.w / 2, maix::image::COLOR_RED);
+        img->draw_cross(cx, cy, maix::image::COLOR_RED, 2);
+    }
+}
+
+void Vision::debugInfo(std::shared_ptr<maix::image::Image> img)
+{
+    img->draw_string(10, 10, (std::string("C:") + cameraFps.str()).c_str(), image::COLOR_WHITE);
+    img->draw_string(10, 22, (std::string("V:") + visonFps.str()).c_str(), image::COLOR_WHITE);
+    img->draw_string(10, 34, Temp::get_cpu_temp().c_str(), image::COLOR_WHITE);
 }
 
 /**
@@ -320,3 +440,81 @@ Vision::~Vision()
 
     Log::warn(TAG, "vision thread destroy");
 }
+
+//----------------------------------------------------
+// struct LedTarget
+// {
+//     int x = -1;
+//     int y = -1;
+//     int brightness = 0;
+// };
+
+// LedTarget Vision::detectGreenLED(maix::image::Image *img)
+// {
+//     LedTarget best;
+
+//     const int step = 2; // 每2像素扫描一次，速度×4
+//     const int w = img->width();
+//     const int h = img->height();
+
+//     for (int y = 10; y < h - 10; y += step) {
+//         for (int x = 10; x < w - 10; x += step) {
+//             auto c = img->get_pixel(x, y);
+
+//             int r = c[0];
+//             int g = c[1];
+//             int b = c[2];
+
+//             // 绿色过滤
+//             if (g < r + 30)
+//                 continue;
+//             if (g < b + 30)
+//                 continue;
+
+//             // 亮度
+//             int bright = (299 * r + 587 * g + 114 * b) / 1000;
+
+//             if (bright < 120)
+//                 continue;
+
+//             // 找最亮
+//             if (bright > best.brightness) {
+//                 best.x = x;
+//                 best.y = y;
+//                 best.brightness = bright;
+//             }
+//         }
+//     }
+
+//     return best;
+// }
+// bool Vision::confirmLED(maix::image::Image *img, int cx, int cy)
+// {
+//     int count = 0;
+
+//     for (int dy = -2; dy <= 2; dy++) {
+//         for (int dx = -2; dx <= 2; dx++) {
+//             auto c = img->get_pixel(cx + dx, cy + dy);
+
+//             int r = c[0], g = c[1], b = c[2];
+
+//             if (g > r + 20 && g > b + 20)
+//                 count++;
+//         }
+//     }
+
+//     return count > 8;
+// }
+// void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
+// {
+//     auto led = detectGreenLED(img.get());
+
+//     if (led.brightness == 0)
+//         return;
+
+//     if (!confirmLED(img.get(), led.x, led.y))
+//         return;
+
+//     img->draw_cross(led.x, led.y, maix::image::COLOR_RED, 3);
+//     img->draw_circle(led.x, led.y, 8, maix::image::COLOR_RED);
+// }

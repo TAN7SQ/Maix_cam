@@ -85,7 +85,7 @@ public:
         file >> temp;
 
         char buf[64];
-        sprintf(buf, "T:%.1f", temp / 1000.0f);
+        sprintf(buf, "T:%.2f", temp / 1000.0f);
 
         return buf;
     }
