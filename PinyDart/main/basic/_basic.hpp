@@ -32,6 +32,38 @@
 
 //================================================================
 #include "_easyLog.hpp"
+struct Vec3
+{
+    union {
+        struct
+        {
+            float x, y, z;
+        };
+        struct
+        {
+            float roll, pitch, yaw;
+        };
+        float v[3];
+    };
+    Vec3() = default;
+    Vec3(float x_, float y_, float z_) : x(x_), y(y_), z(z_)
+    {
+    }
+};
+
+struct IMURawData
+{
+    Vec3 gyro;
+    Vec3 acc;
+};
+
+struct IMUAttitude
+{
+    Vec3 euler;
+    Vec3 quat;
+};
+
+//================================================================
 
 class FPSCount
 {
@@ -97,4 +129,12 @@ public:
 
         return buf;
     }
+};
+
+class Tools
+{
+public:
+    static constexpr const char *TAG = "Tools";
+    static uint16_t crc16_ccitt(const uint8_t *data, int len);
+    static uint16_t crc16_ccitt(const uint8_t *data, uint16_t len, uint16_t crc);
 };

@@ -19,16 +19,7 @@ int _main(int argc, char *argv[])
     const auto port = "/dev/ttyS1"s;       // UART port string
     constexpr long uart_baudrate = 115200; // UART baudrate constant
 
-    auto set_uart_pin = [](const std::string &pin, const std::string &function)
-    {
-        auto ret = peripheral::pinmap::set_pin_function(pin.c_str(), function.c_str());
-        if (ret != err::Err::ERR_NONE)
-        {
-            maix::log::error("pinmap error");
-            return false;
-        }
-        return true;
-    };
+
     set_uart_pin("A19", "UART1_TX");
     set_uart_pin("A18", "UART1_RX");
     maix::peripheral::uart::UART serial =

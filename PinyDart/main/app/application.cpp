@@ -1,4 +1,5 @@
 #include "application.hpp"
+#include "uart.hpp"
 
 using namespace maix;
 
@@ -38,9 +39,11 @@ void App::appSchedule(int argc, char *argv[])
     App::appInit(argc, argv);
 
     /********************************************************* */
+    Uart uart1(Uart::UART1, 115200);
+    uart1.uartSchedule();
 
-    Vision vision = Vision();
-    vision.visionSchedule(config.vision);
+    // Vision vision = Vision();
+    // vision.visionSchedule(config.vision);
 
     while (!app::need_exit()) {
         maix::thread::sleep_ms(1000);

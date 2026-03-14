@@ -1,0 +1,12 @@
+#!/bin/sh
+
+echo "kill maix server"
+
+kill 291
+kill 340
+kill 341
+
+echo "system start"
+# /root/Piny_Dart_release/Piny_Dart &
+
+exit 0

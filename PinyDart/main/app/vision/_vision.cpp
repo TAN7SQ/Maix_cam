@@ -148,22 +148,22 @@ void Vision::recoderThread()
         Log::info(TAG, "upd start");
     }
     /***************************************************** */
-    std::unique_ptr<video::Encoder> enc;
+    // std::unique_ptr<video::Encoder> enc;
 
-    if (_config.mp4.is_enabled) {
-        enc = std::make_unique<video::Encoder>(_config.mp4.mp4_path.c_str(),
-                                               IMG_WIDTH,
-                                               IMG_HEIGHT,
-                                               image::Format::FMT_YVU420SP,
-                                               video::VideoType::VIDEO_H264,
-                                               _config.mp4.fps,
-                                               50,
-                                               _config.mp4.bitrate,
-                                               1000,
-                                               false,
-                                               true);
-        Log::info(TAG, "mp4 start");
-    }
+    // if (_config.mp4.is_enabled) {
+    //     enc = std::make_unique<video::Encoder>(_config.mp4.mp4_path.c_str(),
+    //                                            IMG_WIDTH,
+    //                                            IMG_HEIGHT,
+    //                                            image::Format::FMT_YVU420SP,
+    //                                            video::VideoType::VIDEO_H264,
+    //                                            _config.mp4.fps,
+    //                                            50,
+    //                                            _config.mp4.bitrate,
+    //                                            1000,
+    //                                            false,
+    //                                            true);
+    //     Log::info(TAG, "mp4 start");
+    // }
 
     while (!app::need_exit()) {
 
@@ -181,50 +181,50 @@ void Vision::recoderThread()
 
         last_send = now;
         try {
-            // if (_config.udp.is_enabled) {
-            //     std::unique_ptr<image::Image> jpeg(img->to_jpeg(30));
-            //     if (jpeg) {
-            //         int ret = sendto(sock, jpeg->data(), jpeg->data_size(), 0, (struct sockaddr *)&addr,
-            //         sizeof(addr)); if (ret < 0)
-            //             Log::warn(TAG, "sendto error %d", ret);
-            //     }
-            // }
-
-            maix::thread::sleep_ms(1);
-            if (_config.mp4.is_enabled && enc) {
-                auto yuv = img->to_format(image::Format::FMT_YVU420SP);
-                video::Frame *frame = enc->encode(yuv); // 这里已经顺便内录了
-
-                /********************* */
-                if (frame && _config.udp.is_enabled) {
-                    static uint16_t frame_id = 0;
-                    const int PACKET = 1400;
-                    const int HEADER = 8;
-                    const int PAYLOAD = PACKET - HEADER;
-
-                    uint8_t *data = frame->data();
-                    int size = frame->size();
-                    int total = (size + PAYLOAD - 1) / PAYLOAD;
-
-                    for (int i = 0; i < total; i++) {
-                        uint8_t packet[PACKET];
-
-                        uint16_t *h = (uint16_t *)packet;
-                        h[0] = frame_id;
-                        h[1] = i;
-                        h[2] = total;
-                        h[3] = std::min(PAYLOAD, size - i * PAYLOAD);
-
-                        memcpy(packet + HEADER, data + i * PAYLOAD, h[3]);
-                        sendto(sock, packet, h[3] + HEADER, 0, (struct sockaddr *)&addr, sizeof(addr));
-                    }
-                    frame_id++;
+            if (_config.udp.is_enabled) {
+                std::unique_ptr<image::Image> jpeg(img->to_jpeg(30));
+                if (jpeg) {
+                    int ret = sendto(sock, jpeg->data(), jpeg->data_size(), 0, (struct sockaddr *)&addr, sizeof(addr));
+                    if (ret < 0)
+                        Log::warn(TAG, "sendto error %d", ret);
                 }
-                /********************* */
-
-                delete yuv;
-                delete frame;
             }
+
+            // maix::thread::sleep_ms(1);
+            // if (_config.mp4.is_enabled && enc) {
+            //     auto yuv = img->to_format(image::Format::FMT_YVU420SP);
+            //     video::Frame *frame = enc->encode(yuv); // 这里已经顺便内录了
+
+            //     // /********************* */
+            //     // if (frame && _config.udp.is_enabled) {
+            //     //     static uint16_t frame_id = 0;
+            //     //     const int PACKET = 1400;
+            //     //     const int HEADER = 8;
+            //     //     const int PAYLOAD = PACKET - HEADER;
+
+            //     //     uint8_t *data = frame->data();
+            //     //     int size = frame->size();
+            //     //     int total = (size + PAYLOAD - 1) / PAYLOAD;
+
+            //     //     for (int i = 0; i < total; i++) {
+            //     //         uint8_t packet[PACKET];
+
+            //     //         uint16_t *h = (uint16_t *)packet;
+            //     //         h[0] = frame_id;
+            //     //         h[1] = i;
+            //     //         h[2] = total;
+            //     //         h[3] = std::min(PAYLOAD, size - i * PAYLOAD);
+
+            //     //         memcpy(packet + HEADER, data + i * PAYLOAD, h[3]);
+            //     //         sendto(sock, packet, h[3] + HEADER, 0, (struct sockaddr *)&addr, sizeof(addr));
+            //     //     }
+            //     //     frame_id++;
+            //     // }
+            //     // /********************* */
+
+            //     delete yuv;
+            //     delete frame;
+            // }
         } catch (...) {
             Log::error(TAG, "recoder thread error");
         }
