@@ -196,7 +196,7 @@ void Vision::recoderThread()
                 video::Frame *frame = enc->encode(yuv); // 这里已经顺便内录了
 
                 /********************* */
-                if (frame) {
+                if (frame && _config.udp.is_enabled) {
                     static uint16_t frame_id = 0;
                     const int PACKET = 1400;
                     const int HEADER = 8;
@@ -204,7 +204,6 @@ void Vision::recoderThread()
 
                     uint8_t *data = frame->data();
                     int size = frame->size();
-
                     int total = (size + PAYLOAD - 1) / PAYLOAD;
 
                     for (int i = 0; i < total; i++) {
