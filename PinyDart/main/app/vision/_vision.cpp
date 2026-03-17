@@ -74,8 +74,10 @@ void Vision::cameraThread(camera::Camera *pcam)
             cameraFps.tick();
             maix::thread::sleep_ms(2);
 
+        } catch (const std::exception &e) {
+            Log::error(TAG, "cam exception: %s", e.what());
         } catch (...) {
-            Log::error(TAG, "camera read error");
+            Log::error(TAG, "cam unknown error");
         }
     }
     delete pcam;
@@ -110,8 +112,10 @@ void Vision::visionThread()
             visonFps.tick();
             maix::thread::sleep_ms(2);
 
+        } catch (const std::exception &e) {
+            Log::error(TAG, "vision exception: %s", e.what());
         } catch (...) {
-            Log::error(TAG, "vision process error");
+            Log::error(TAG, "vision unknown error");
         }
     }
 }
@@ -149,7 +153,6 @@ void Vision::recoderThread()
     }
     /***************************************************** */
     // std::unique_ptr<video::Encoder> enc;
-
     // if (_config.mp4.is_enabled) {
     //     enc = std::make_unique<video::Encoder>(_config.mp4.mp4_path.c_str(),
     //                                            IMG_WIDTH,
@@ -194,34 +197,28 @@ void Vision::recoderThread()
             // if (_config.mp4.is_enabled && enc) {
             //     auto yuv = img->to_format(image::Format::FMT_YVU420SP);
             //     video::Frame *frame = enc->encode(yuv); // 这里已经顺便内录了
-
             //     // /********************* */
             //     // if (frame && _config.udp.is_enabled) {
             //     //     static uint16_t frame_id = 0;
             //     //     const int PACKET = 1400;
             //     //     const int HEADER = 8;
             //     //     const int PAYLOAD = PACKET - HEADER;
-
             //     //     uint8_t *data = frame->data();
             //     //     int size = frame->size();
             //     //     int total = (size + PAYLOAD - 1) / PAYLOAD;
-
             //     //     for (int i = 0; i < total; i++) {
             //     //         uint8_t packet[PACKET];
-
             //     //         uint16_t *h = (uint16_t *)packet;
             //     //         h[0] = frame_id;
             //     //         h[1] = i;
             //     //         h[2] = total;
             //     //         h[3] = std::min(PAYLOAD, size - i * PAYLOAD);
-
             //     //         memcpy(packet + HEADER, data + i * PAYLOAD, h[3]);
             //     //         sendto(sock, packet, h[3] + HEADER, 0, (struct sockaddr *)&addr, sizeof(addr));
             //     //     }
             //     //     frame_id++;
             //     // }
             //     // /********************* */
-
             //     delete yuv;
             //     delete frame;
             // }
@@ -236,26 +233,18 @@ void Vision::recoderThread()
 // {
 //     maix::thread::sleep_ms(100);
 //     Log::info(TAG, "recoder thread start");
-
-//     uint64_t last_send = 0;
-
+//    uint64_t last_send = 0;
 //     const int TARGET_FPS = 15;
 //     const int FRAME_INTERVAL = 1000 / TARGET_FPS;
 //     /***************************************************** */
-
 //     const char *PC_IP = _config.udp.udp_ip.c_str();
 //     const int PORT = _config.udp.udp_port;
-
 //     sock = socket(AF_INET, SOCK_DGRAM, 0);
-
 //     fcntl(sock, F_SETFL, O_NONBLOCK);
-
 //     addr.sin_family = AF_INET;
 //     addr.sin_port = htons(PORT);
 //     addr.sin_addr.s_addr = inet_addr(PC_IP);
-
 //     /***************************************************** */
-
 //     while (!app::need_exit()) {
 //         auto img = recordQueue.pop();
 //         if (!img) {
@@ -274,10 +263,8 @@ void Vision::recoderThread()
 //                 uint8_t *data = (uint8_t *)jpeg->data();
 //                 int size = jpeg->data_size();
 //                 sendto(sock, data, size, 0, (struct sockaddr *)&addr, sizeof(addr));
-
 //                 delete jpeg;
 //             }
-
 //         } catch (...) {
 //             Log::error(TAG, "recorder error");
 //         }
@@ -409,57 +396,93 @@ float Vision::calcBlobCenterBrightness(maix::image::Image *img, maix::image::Blo
 
 void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
 {
+    // ================== 自适应 stride ==================
+    int stride;
+    if (maxblob.w > 20)
+        stride = 3;
+    else if (maxblob.w > 10)
+        stride = 2;
+    else
+        stride = 1;
 
-    const int layROI = 10;
-    // static std::vector<std::vector<int>> greenThresholds = {{0, 80, -120, -10, 0, 30}};
+    int x, y, w, h;
+
+    if (maxblob.pixels > 0) {
+
+        int roi_size = std::clamp(maxblob.w * 4, 80, 120);
+
+        x = (int)maxblob.cx - roi_size / 2;
+        y = (int)maxblob.cy - roi_size / 2;
+
+        x = std::clamp(x, 0, img->width() - 1);
+        y = std::clamp(y, 0, img->height() - 1);
+
+        w = std::min(roi_size, img->width() - x);
+        h = std::min(roi_size, img->height() - y);
+
+        if (w <= 0 || h <= 0) {
+            x = 0;
+            y = 0;
+            w = img->width();
+            h = img->height();
+        }
+    }
+    else {
+        x = 0;
+        y = 0;
+        w = img->width();
+        h = img->height();
+    }
 
     auto blobs = img->find_blobs(_config.find_blobs.green_thresholds,
                                  false,
-                                 {layROI, layROI, img->width() - layROI, img->height() - layROI},
-                                 2,
-                                 2,
-                                 10,
-                                 5,
-                                 true,
-                                 10,
-                                 16,
-                                 16);
+                                 {x, y, w, h},
+                                 stride,
+                                 stride,
+                                 _config.find_blobs.area_threshold,
+                                 _config.find_blobs.pixels_threshold,
+                                 _config.find_blobs.merge,
+                                 _config.find_blobs.margin,
+                                 _config.find_blobs.x_hist_bins_max,
+                                 _config.find_blobs.y_hist_bins_max);
 
     maxblob.pixels = 0;
     maxblob.brightness = 0;
 
     float bestScore = 0;
 
-    static float last_best_score;
+    // *******************************************************
 
     for (auto &blob : blobs) {
 
-        if (blob.pixels() < maxblob.pixels)
+        if (blob.pixels() < 5)
             continue;
 
-        float brightness = Vision::calcBlobCenterBrightness(img.get(), blob);
+        if (blob.w() > 60 || blob.h() > 60)
+            continue;
 
-        float score = brightness * brightness * blob.pixels();
+        float brightness = calcBlobCenterBrightness(img.get(), blob);
 
-        if (score > bestScore && score / last_best_score > 0.6) {
+        float score = brightness * brightness * sqrt(blob.pixels());
+
+        if (score > bestScore) {
+            auto sub = calcBlobSubpixelCenter(img.get(), blob); // 亚像素好像没什么区别
             bestScore = score;
 
+            maxblob.cx = blob.x() + blob.w() / 2;
+            maxblob.cy = blob.y() + blob.h() / 2;
             maxblob.x = blob.x();
             maxblob.y = blob.y();
             maxblob.w = blob.w();
             maxblob.h = blob.h();
             maxblob.pixels = blob.pixels();
             maxblob.brightness = brightness;
-            // printf("blob pixels=%d brightness=%.2f\n", blob.pixels(), brightness);
         }
     }
-    last_best_score = bestScore;
 
     if (maxblob.pixels > 0) {
-        int cx = maxblob.x + maxblob.w / 2;
-        int cy = maxblob.y + maxblob.h / 2;
-        img->draw_circle(cx, cy, maxblob.w / 2, maix::image::COLOR_RED, 3);
-        img->draw_cross(cx, cy, maix::image::COLOR_RED, 3);
+        img->draw_circle(maxblob.cx, maxblob.cy, maxblob.w / 2, maix::image::COLOR_RED, 3);
+        img->draw_cross(maxblob.cx, maxblob.cy, maix::image::COLOR_RED, 3);
     }
 }
 
@@ -468,4 +491,69 @@ void Vision::debugInfo(std::shared_ptr<maix::image::Image> img)
     img->draw_string(10, 10, (std::string("C:") + cameraFps.str()).c_str(), image::COLOR_WHITE);
     img->draw_string(10, 22, (std::string("V:") + visonFps.str()).c_str(), image::COLOR_WHITE);
     img->draw_string(10, 34, Temp::get_cpu_temp().c_str(), image::COLOR_WHITE);
+}
+
+/**
+ * @brief just for rgb888 image
+ */
+Vision::SubpixelResult Vision::calcBlobSubpixelCenter(maix::image::Image *img, maix::image::Blob &blob)
+{
+    int cx0 = blob.x() + blob.w() / 2;
+    int cy0 = blob.y() + blob.h() / 2;
+    const int radius = 3;
+    float sumI = 0.0f;
+    float sumX = 0.0f;
+    float sumY = 0.0f;
+
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+
+            int x = cx0 + dx;
+            int y = cy0 + dy;
+
+            if (x < 0 || y < 0 || x >= img->width() || y >= img->height())
+                continue;
+
+            auto c = img->get_pixel(x, y);
+
+            int r = c[0];
+            int g = c[1];
+            int b = c[2];
+
+            // 灰度
+            float I = (299 * r + 587 * g + 114 * b) / 1000.0f;
+
+            // 弱绿色约束（而不是强过滤）
+            float green_weight = g - std::max(r, b);
+
+            // if (green_weight < 10) {
+            //     continue;
+            // }
+
+            // 加入权重（越绿权重越高）
+            float weight = I * (1.0f + green_weight / 50.0f);
+
+            sumI += weight;
+            sumX += weight * x;
+            sumY += weight * y;
+        }
+    }
+
+    SubpixelResult res;
+
+    // 避免“完全丢失”
+    if (sumI < 1e-3f) {
+        res.cx = cx0;
+        res.cy = cy0;
+        res.brightness = 0;
+        return res;
+    }
+
+    res.cx = sumX / sumI;
+    res.cy = sumY / sumI;
+
+    // 用平均亮度
+    res.brightness = sumI / ((2 * radius + 1) * (2 * radius + 1));
+
+    return res;
 }

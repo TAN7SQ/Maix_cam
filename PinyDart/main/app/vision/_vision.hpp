@@ -8,16 +8,31 @@
 class Vision
 {
 public:
+    struct SubpixelResult
+    {
+        float cx;
+        float cy;
+        float brightness;
+    };
+
     typedef struct
     {
         int x;
         int y;
         int w;
         int h;
+        
+        float cx;
+        float cy;
+        float vx;
+        float vy;
+
         int pixels;
         float brightness;
     } maxBlob_t;
 
+    /********************************** */
+public:
     static constexpr const char *TAG = "Vision";
 
     void visionSchedule(const VisionConfig &config);
@@ -25,11 +40,8 @@ public:
     Vision() : cameraFps(), visonFps() {};
     ~Vision();
 
+    /********************************** */
 private:
-    /* Camera */
-    // maix::camera::Camera *cam;
-    // maix::camera::Camera *camRecord = nullptr;
-
     /* Threads */
     std::thread *pCameraThread = nullptr;
     std::thread *pVisionThread = nullptr;
@@ -41,9 +53,13 @@ private:
 
     float calcBlobBrightness(maix::image::Image *img, maix::image::Blob &blob);
     float calcBlobCenterBrightness(maix::image::Image *img, maix::image::Blob &blob);
+    SubpixelResult calcBlobSubpixelCenter(maix::image::Image *img, maix::image::Blob &blob);
+
     void targetDetect(std::shared_ptr<maix::image::Image> img);
     void debugInfo(std::shared_ptr<maix::image::Image> img);
 
+    /********************************** */
+private:
     // 引导灯实际尺寸
     const float TARGET_SIZE = 5.0f; // cm
     // 摄像头内参

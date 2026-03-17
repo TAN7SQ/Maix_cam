@@ -1,0 +1,38 @@
+{
+  "vision": {
+    "find_blobs": {
+      "green_thresholds": [[30, 100, -80, -10, -30, 30]],
+      "x_stride": 2,
+      "y_stride": 2,
+      "area_threshold": 10,
+      "pixels_threshold": 3,
+      "merge": true,
+      "margin": 10,
+      "x_hist_bins_max": 2,
+      "y_hist_bins_max": 2
+    },
+    "udp": {
+      "is_enabled": true,
+      "udp_ip": "10.104.30.100",
+      "udp_port": 5000
+    },
+    "mp4": {
+      "is_enabled": true,
+      "mp4_fps": 20,
+      "bitrate": 1200000,
+      "mp4_path": "/root/mp4/record.mp4"
+    }
+  },
+
+  "control": {
+    "kp": 0.8,
+    "ki": 0.02,
+    "kd": 0.1,
+    "max_speed": 2.0
+  },
+
+  "network": {
+    "wifi_ssid": "test_wifi",
+    "wifi_password": "12345678"
+  }
+}

@@ -26,11 +26,16 @@ bool ConfigJson::load(const std::string &filename, AppConfig &config)
         auto fb = v["find_blobs"];
 
         config.vision.find_blobs.green_thresholds =
-            fb.value("green_thresholds", std::vector<std::vector<int>>{{60, 100, -80, -10, -30, 10}});
+            fb.value("green_thresholds", std::vector<std::vector<int>>{{30, 100, -80, -10, -30, 30}});
 
-        config.vision.find_blobs.min_area = fb.value("min_area", 50);
-        config.vision.find_blobs.max_area = fb.value("max_area", 5000);
-        config.vision.find_blobs.led_brightness_threshold = fb.value("led_brightness_threshold", 120);
+        config.vision.find_blobs.x_stride = fb.value("x_stride", 2);
+        config.vision.find_blobs.y_stride = fb.value("y_stride", 2);
+        config.vision.find_blobs.area_threshold = fb.value("area_threshold", 10);
+        config.vision.find_blobs.pixels_threshold = fb.value("pixels_threshold", 3);
+        config.vision.find_blobs.merge = fb.value("merge", true);
+        config.vision.find_blobs.margin = fb.value("margin", 10);
+        config.vision.find_blobs.x_hist_bins_max = fb.value("x_hist_bins_max", 2);
+        config.vision.find_blobs.y_hist_bins_max = fb.value("y_hist_bins_max", 2);
 
         config.vision.udp.is_enabled = u.value("is_enabled", true);
         config.vision.udp.udp_ip = u.value("udp_ip", "10.104.30.100");
@@ -65,9 +70,14 @@ void ConfigJson::print_vision(const VisionConfig &config)
                    config.find_blobs.green_thresholds[0][4],
                    config.find_blobs.green_thresholds[0][5]);
     }
-    Log::trace(TAG, "min_area: %d", config.find_blobs.min_area);
-    Log::trace(TAG, "max_area: %d", config.find_blobs.max_area);
-    Log::trace(TAG, "led_brightness_threshold: %d", config.find_blobs.led_brightness_threshold);
+    Log::trace(TAG, "x_stride: %d", config.find_blobs.x_stride);
+    Log::trace(TAG, "y_stride: %d", config.find_blobs.y_stride);
+    Log::trace(TAG, "area_threshold: %d", config.find_blobs.area_threshold);
+    Log::trace(TAG, "pixels_threshold: %d", config.find_blobs.pixels_threshold);
+    Log::trace(TAG, "merge: %d", config.find_blobs.merge);
+    Log::trace(TAG, "margin: %d", config.find_blobs.margin);
+    Log::trace(TAG, "x_hist_bins_max: %d", config.find_blobs.x_hist_bins_max);
+    Log::trace(TAG, "y_hist_bins_max: %d", config.find_blobs.y_hist_bins_max);
     Log::trace(TAG, "udp_ip: %s", config.udp.udp_ip.c_str());
     Log::trace(TAG, "udp_port: %d", config.udp.udp_port);
     printf("\n");

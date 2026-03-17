@@ -7,9 +7,14 @@ struct VisionConfig
     struct
     {
         std::vector<std::vector<int>> green_thresholds;
-        int min_area;
-        int max_area;
-        int led_brightness_threshold;
+        int x_stride;
+        int y_stride;
+        int area_threshold;
+        int pixels_threshold;
+        bool merge;
+        int margin;
+        int x_hist_bins_max;
+        int y_hist_bins_max;
     } find_blobs;
 
     struct
