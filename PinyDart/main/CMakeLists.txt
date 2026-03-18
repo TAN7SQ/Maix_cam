@@ -3,7 +3,7 @@ list(APPEND ADD_INCLUDE
                         "include"
     )
 list(APPEND ADD_PRIVATE_INCLUDE 
-                        "algorithm/include"
+                        "algorithm/lpf"
                         "basic"
                         "basic/log"
                         "basic/json"
@@ -20,7 +20,7 @@ list(APPEND ADD_PRIVATE_INCLUDE
 #     )
 append_srcs_dir(ADD_SRCS 
                         "src"
-                        "algorithm/src"
+                        "algorithm/lpf"
                         "basic"
                         "basic/log"
                         "basic/json"

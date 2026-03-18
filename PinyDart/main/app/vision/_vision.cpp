@@ -396,7 +396,6 @@ float Vision::calcBlobCenterBrightness(maix::image::Image *img, maix::image::Blo
 
 void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
 {
-    // ================== 自适应 stride ==================
     int stride;
     if (maxblob.w > 20)
         stride = 3;
@@ -409,13 +408,10 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
 
     if (maxblob.pixels > 0) {
 
-        int roi_size = std::clamp(maxblob.w * 4, 80, 120);
+        int roi_size = std::clamp(maxblob.w * 4, 20, 100);
 
-        x = (int)maxblob.cx - roi_size / 2;
-        y = (int)maxblob.cy - roi_size / 2;
-
-        x = std::clamp(x, 0, img->width() - 1);
-        y = std::clamp(y, 0, img->height() - 1);
+        x = std::clamp((int)maxblob.cx - roi_size / 2, 0, img->width() - 1);
+        y = std::clamp((int)maxblob.cy - roi_size / 2, 0, img->height() - 1);
 
         w = std::min(roi_size, img->width() - x);
         h = std::min(roi_size, img->height() - y);
@@ -448,6 +444,7 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
 
     maxblob.pixels = 0;
     maxblob.brightness = 0;
+    maxblob.w = 0;
 
     float bestScore = 0;
 
@@ -466,11 +463,13 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
         float score = brightness * brightness * sqrt(blob.pixels());
 
         if (score > bestScore) {
-            auto sub = calcBlobSubpixelCenter(img.get(), blob); // 亚像素好像没什么区别
+            auto sub = calcBlobSubpixelCenter(img.get(), blob);
             bestScore = score;
 
-            maxblob.cx = blob.x() + blob.w() / 2;
-            maxblob.cy = blob.y() + blob.h() / 2;
+            maxblob.cx = cxLpf.update(sub.cx);
+            maxblob.cy = cyLpf.update(sub.cy);
+            // maxblob.cx = sub.cx;
+            // maxblob.cy = sub.cy;
             maxblob.x = blob.x();
             maxblob.y = blob.y();
             maxblob.w = blob.w();
@@ -481,6 +480,10 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
     }
 
     if (maxblob.pixels > 0) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "C:%.1f, %.1f", maxblob.cx, maxblob.cy);
+        img->draw_string(maxblob.cx, maxblob.cy, buf, maix::image::COLOR_RED);
+
         img->draw_circle(maxblob.cx, maxblob.cy, maxblob.w / 2, maix::image::COLOR_RED, 3);
         img->draw_cross(maxblob.cx, maxblob.cy, maix::image::COLOR_RED, 3);
     }
@@ -514,16 +517,14 @@ Vision::SubpixelResult Vision::calcBlobSubpixelCenter(maix::image::Image *img, m
             if (x < 0 || y < 0 || x >= img->width() || y >= img->height())
                 continue;
 
-            auto c = img->get_pixel(x, y);
+            auto c = img->get_pixel(x, y, true);
 
             int r = c[0];
             int g = c[1];
             int b = c[2];
 
-            // 灰度
             float I = (299 * r + 587 * g + 114 * b) / 1000.0f;
 
-            // 弱绿色约束（而不是强过滤）
             float green_weight = g - std::max(r, b);
 
             // if (green_weight < 10) {

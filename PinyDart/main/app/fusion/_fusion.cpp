@@ -3,7 +3,6 @@
 
 #include "_fusion.hpp"
 #include "_vision.hpp"
-#include "kalmanFilter.hpp"
 
 using namespace maix;
 
@@ -18,8 +17,6 @@ void fusion_thread(void)
     while (!app::need_exit()) {
         // TODO：融合逻辑
         // TODO: 带姿态补偿的LOS
-
-        test_kalman();
 
         maix::thread::sleep_ms(10);
     }

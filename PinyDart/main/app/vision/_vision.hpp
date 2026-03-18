@@ -5,6 +5,8 @@
 #include "_configJson.hpp"
 #include "_frameQueue.hpp"
 
+#include "lpf.hpp"
+
 class Vision
 {
 public:
@@ -21,7 +23,7 @@ public:
         int y;
         int w;
         int h;
-        
+
         float cx;
         float cy;
         float vx;
@@ -37,7 +39,7 @@ public:
 
     void visionSchedule(const VisionConfig &config);
 
-    Vision() : cameraFps(), visonFps() {};
+    Vision() : cameraFps(), visonFps(), cxLpf(0.05f), cyLpf(0.05f) {};
     ~Vision();
 
     /********************************** */
@@ -80,4 +82,8 @@ private:
 
     int sock;
     struct sockaddr_in addr;
+
+    /********************************** */
+    LPF cxLpf;
+    LPF cyLpf;
 };
