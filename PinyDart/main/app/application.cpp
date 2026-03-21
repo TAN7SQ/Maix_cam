@@ -48,6 +48,6 @@ void App::appSchedule(int argc, char *argv[])
     vision.visionSchedule(config.vision);
 
     while (!app::need_exit()) {
-        maix::thread::sleep_ms(1000);
+        maix::thread::sleep_ms(100);
     }
 }

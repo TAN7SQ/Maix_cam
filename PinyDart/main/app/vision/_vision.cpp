@@ -170,6 +170,7 @@ void Vision::recoderThread()
 
     while (!app::need_exit()) {
 
+        // auto img = frameQueue.pop();
         auto img = recordQueue.pop();
         if (!img) {
             maix::thread::sleep_ms(1);
@@ -185,7 +186,7 @@ void Vision::recoderThread()
         last_send = now;
         try {
             if (_config.udp.is_enabled) {
-                std::unique_ptr<image::Image> jpeg(img->to_jpeg(30));
+                std::unique_ptr<image::Image> jpeg(img->to_jpeg(80));
                 if (jpeg) {
                     int ret = sendto(sock, jpeg->data(), jpeg->data_size(), 0, (struct sockaddr *)&addr, sizeof(addr));
                     if (ret < 0)
@@ -468,21 +469,31 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
 
             maxblob.cx = cxLpf.update(sub.cx);
             maxblob.cy = cyLpf.update(sub.cy);
-            // maxblob.cx = sub.cx;
-            // maxblob.cy = sub.cy;
             maxblob.x = blob.x();
             maxblob.y = blob.y();
             maxblob.w = blob.w();
             maxblob.h = blob.h();
+
             maxblob.pixels = blob.pixels();
             maxblob.brightness = brightness;
+
+            undistortPoint(maxblob.cx, maxblob.cy, target.normX, target.normY);
+            target.valid = true;
+            target.rawCx = maxblob.cx;
+            target.rawCy = maxblob.cy;
+            target.area = (maxblob.w / 2) * (maxblob.w / 2) * 3.1415926f;
+        }
+        else {
+            target.valid = false;
         }
     }
 
     if (maxblob.pixels > 0) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "C:%.1f, %.1f", maxblob.cx, maxblob.cy);
+        snprintf(buf, sizeof(buf), "R:%.1f, %.1f", maxblob.cx, maxblob.cy);
         img->draw_string(maxblob.cx, maxblob.cy, buf, maix::image::COLOR_RED);
+        snprintf(buf, sizeof(buf), "T:%.4f, %.4f", target.normX, target.normY);
+        img->draw_string(maxblob.cx, maxblob.cy + 30, buf, maix::image::COLOR_RED);
 
         img->draw_circle(maxblob.cx, maxblob.cy, maxblob.w / 2, maix::image::COLOR_RED, 3);
         img->draw_cross(maxblob.cx, maxblob.cy, maix::image::COLOR_RED, 3);
@@ -527,11 +538,6 @@ Vision::SubpixelResult Vision::calcBlobSubpixelCenter(maix::image::Image *img, m
 
             float green_weight = g - std::max(r, b);
 
-            // if (green_weight < 10) {
-            //     continue;
-            // }
-
-            // 加入权重（越绿权重越高）
             float weight = I * (1.0f + green_weight / 50.0f);
 
             sumI += weight;
@@ -542,7 +548,6 @@ Vision::SubpixelResult Vision::calcBlobSubpixelCenter(maix::image::Image *img, m
 
     SubpixelResult res;
 
-    // 避免“完全丢失”
     if (sumI < 1e-3f) {
         res.cx = cx0;
         res.cy = cy0;
@@ -557,4 +562,38 @@ Vision::SubpixelResult Vision::calcBlobSubpixelCenter(maix::image::Image *img, m
     res.brightness = sumI / ((2 * radius + 1) * (2 * radius + 1));
 
     return res;
+}
+
+void Vision::undistortPoint(float u, float v, float &x_out, float &y_out)
+{
+    using namespace CalibParams;
+
+    // 1. 像素 -> 归一化相机坐标 (带畸变)
+    float x_distorted = (u - CalibParams::CX) / CalibParams::FX;
+    float y_distorted = (v - CalibParams::CY) / CalibParams::FY;
+
+    // 2. 使用迭代法求解去畸变坐标 (OpenCV 标准算法)
+    // 因为畸变模型是 x_distorted = f(x_undistorted), 反向求解需要迭代
+    float x = x_distorted;
+    float y = y_distorted;
+
+    const int kNumIterations = 5; // 迭代5次通常足够精确
+    for (int i = 0; i < kNumIterations; i++) {
+        float r2 = x * x + y * y;
+        float r4 = r2 * r2;
+        float r6 = r4 * r2;
+
+        float k1 = CalibParams::DIST[0], k2 = CalibParams::DIST[1], p1 = CalibParams::DIST[2],
+              p2 = CalibParams::DIST[3], k3 = CalibParams::DIST[4];
+
+        float radial_dist = 1.0f + k1 * r2 + k2 * r4 + k3 * r6;
+        float tangential_x = 2.0f * p1 * x * y + p2 * (r2 + 2.0f * x * x);
+        float tangential_y = p1 * (r2 + 2.0f * y * y) + 2.0f * p2 * x * y;
+
+        x = (x_distorted - tangential_x) / radial_dist;
+        y = (y_distorted - tangential_y) / radial_dist;
+    }
+
+    x_out = x;
+    y_out = y;
 }

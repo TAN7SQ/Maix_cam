@@ -9,6 +9,22 @@
 
 #include "_shared.hpp"
 
+#include <array>
+
+// 使用半在线标定
+namespace CalibParams
+{
+// 内参
+constexpr float FX = 700.47896124f;
+constexpr float FY = 699.73352985f;
+constexpr float CX = 139.27813504f;
+constexpr float CY = 163.85906361f;
+
+// 畸变系数 [k1, k2, p1, p2, k3]
+constexpr std::array<float, 5> DIST = {
+    -3.63780738e-01f, 8.18599472e-01f, 9.43092466e-04f, 2.80046697e-03f, -5.16386081e+00f};
+}; // namespace CalibParams
+
 class Vision
 {
 public:
@@ -18,6 +34,16 @@ public:
         float cy;
         float brightness;
     };
+
+    struct TargetData
+    {
+        bool valid = false;
+        float area = 0.0f;
+        float normX = 0.0f; // 去畸变后的归一化坐标 (用于制导)
+        float normY = 0.0f;
+        float rawCx = 0.0f; // 原始像素坐标 (用于画图调试)
+        float rawCy = 0.0f;
+    } target;
 
     typedef struct
     {
@@ -63,6 +89,9 @@ private:
     float calcBlobBrightness(maix::image::Image *img, maix::image::Blob &blob);
     float calcBlobCenterBrightness(maix::image::Image *img, maix::image::Blob &blob);
     SubpixelResult calcBlobSubpixelCenter(maix::image::Image *img, maix::image::Blob &blob);
+
+    // 去畸变
+    void undistortPoint(float u, float v, float &x_out, float &y_out);
 
     /********************************** */
 private:
