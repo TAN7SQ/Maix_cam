@@ -4,6 +4,7 @@
 using namespace maix;
 
 #include "_easyLog.hpp"
+#include "fusion/_fusion.hpp"
 #include "vision/_vision.hpp"
 
 #include <signal.h>
@@ -13,8 +14,6 @@ using namespace maix;
 #include "_shared.hpp"
 
 #include "_basic.hpp"
-
-SharedQueue<CamTargetData> globalTargetQueue{3};
 
 void App::appInit(int argc, char *argv[])
 {
@@ -46,13 +45,16 @@ void App::appSchedule(int argc, char *argv[])
     Uart uart1(Uart::UART1, 1500000);
     uart1.uartSchedule();
 
-    Vision vision(globalTargetQueue);
+    Vision vision;
     vision.visionSchedule(config.vision);
+
+    Fusion fusion;
+    fusion.fusionSchedule(config.fusion);
 
     while (!app::need_exit()) {
         maix::thread::sleep_ms(100);
     }
-    threadRun = false;
+    Shared::threadRun = false;
     uart1.deinit();
     vision.deThread();
 }

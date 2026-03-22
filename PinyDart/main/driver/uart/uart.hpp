@@ -48,8 +48,9 @@ private:
     peripheral::uart::UART *serial = nullptr;
     std::thread *pUartThread = nullptr;
 
-    IMURawData data;
+    IMURawData rawData;
     BaroData baroData;
+    IMUAttitude attitudeData;
 
 private:
     peripheral::uart::UART *uartInit(void);

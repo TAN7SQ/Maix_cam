@@ -94,7 +94,7 @@ void Vision::visionThread()
     Log::info(TAG, "vision thread start");
     ConfigJson::print_vision(_config);
 
-    while (threadRun) {
+    while (Shared::threadRun) {
         auto img = frameQueue.pop();
         if (!img) {
             maix::thread::sleep_ms(1);
@@ -105,7 +105,7 @@ void Vision::visionThread()
             Vision::targetDetect(new_img);
             Vision::debugInfo(new_img);
             recordQueue.push(new_img);
-            targetQueue.push_latest(this->target);
+            Shared::gTargetQueue.push_latest(this->target);
             visonFps.tick();
             maix::thread::sleep_ms(2);
 
@@ -165,7 +165,7 @@ void Vision::recoderThread()
     //     Log::info(TAG, "mp4 start");
     // }
 
-    while (threadRun) {
+    while (Shared::threadRun) {
 
         // auto img = frameQueue.pop();
         auto img = recordQueue.pop();
@@ -287,7 +287,7 @@ void Vision::recoderThread_just_record_mp4(void)
                        false,
                        true);
 
-    while (threadRun) {
+    while (Shared::threadRun) {
         auto img = recordQueue.pop();
         if (!img)
             continue;

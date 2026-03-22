@@ -85,6 +85,28 @@ public:
         return item;
     }
 
+    T pop_non_blocking()
+    {
+        std::lock_guard<std::mutex> lock(_mtx);
+
+        // 队列为空，直接返回失败
+        if (_queue.empty()) {
+            // 返回一个默认构造的T（避免未定义行为）
+            return T{};
+        }
+
+        // 队列非空，弹出元素
+        T item = std::move(_queue.front());
+        _queue.pop();
+
+        // 通知队列非满（和其他pop方法保持一致）
+        if (_max_size > 0) {
+            _cv_not_full.notify_one();
+        }
+
+        return item;
+    }
+
     std::optional<T> try_pop()
     {
         std::lock_guard<std::mutex> lock(_mtx);

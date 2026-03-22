@@ -34,6 +34,10 @@
 
 //================================================================
 #include "_easyLog.hpp"
+
+#include "_shared.hpp"
+//================================================================
+
 struct Vec3
 {
     union {
@@ -53,6 +57,20 @@ struct Vec3
     }
 };
 
+struct Quat
+{
+    float w = 1.0f, x = 0.0f, y = 0.0f, z = 0.0f;
+    Quat() = default;
+    Quat(float w_, float x_, float y_, float z_) : w(w_), x(x_), y(y_), z(z_)
+    {
+    }
+};
+
+struct Mat3
+{
+    float m[3][3];
+};
+
 struct IMURawData
 {
     Vec3 gyro;
@@ -62,7 +80,7 @@ struct IMURawData
 struct IMUAttitude
 {
     Vec3 euler;
-    Vec3 quat;
+    Quat quat;
 };
 
 struct BaroData
@@ -87,9 +105,15 @@ struct CamTargetData
     float yawCam = 0.0f;
     float pitchCam = 0.0f;
 };
-//================================================================
 
+//================================================================
+namespace Shared
+{
 extern std::atomic<bool> threadRun;
+extern SharedQueue<CamTargetData> gTargetQueue;
+extern SharedQueue<IMUAttitude> gImuAttitude;
+
+}; // namespace Shared
 
 class FPSCount
 {
@@ -163,4 +187,27 @@ public:
     static constexpr const char *TAG = "Tools";
     static uint16_t crc16_ccitt(const uint8_t *data, int len);
     static uint16_t crc16_ccitt(const uint8_t *data, uint16_t len, uint16_t crc);
+
+    static Quat quat_conjugate(const Quat &q)
+    {
+        return Quat(q.w, -q.x, -q.y, -q.z);
+    }
+
+    static Vec3 quat_rotate(const Quat &q, const Vec3 &v)
+    {
+
+        float qw = q.w, qx = q.x, qy = q.y, qz = q.z;
+
+        Vec3 t;
+        t.x = 2 * (qy * v.z - qz * v.y);
+        t.y = 2 * (qz * v.x - qx * v.z);
+        t.z = 2 * (qx * v.y - qy * v.x);
+
+        Vec3 v_out;
+        v_out.x = v.x + qw * t.x + (qy * t.z - qz * t.y);
+        v_out.y = v.y + qw * t.y + (qz * t.x - qx * t.z);
+        v_out.z = v.z + qw * t.z + (qx * t.y - qy * t.x);
+
+        return v_out;
+    }
 };

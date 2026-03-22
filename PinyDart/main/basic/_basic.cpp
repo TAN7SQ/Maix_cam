@@ -10,8 +10,13 @@
 #include <mutex>
 #include <thread>
 
+namespace Shared
+{
 std::atomic<bool> threadRun(true);
+SharedQueue<CamTargetData> gTargetQueue{3};
+SharedQueue<IMUAttitude> gImuAttitude{3};
 
+}; // namespace Shared
 
 using namespace maix;
 

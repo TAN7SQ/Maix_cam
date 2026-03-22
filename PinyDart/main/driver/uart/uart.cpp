@@ -54,7 +54,7 @@ void Uart::run()
         return;
     }
     uint8_t buf[256];
-    while (threadRun) {
+    while (Shared::threadRun) {
         maix::thread::sleep_ms(1);
         if (serial->available() > 0) {
             int n = serial->read(buf, sizeof(buf));
@@ -92,16 +92,18 @@ void Uart::parseProtocol(uint8_t *buf, int len)
         if (parser.input(buf[i], frame)) {
             switch (frame.type) {
             case (uint8_t)MsgType::IMU: {
-                memcpy(&data, frame.payload, sizeof(IMURawData));
+                memcpy(&rawData, frame.payload, sizeof(IMURawData));
                 break;
             }
             case (uint8_t)MsgType::BARO: {
                 memcpy(&baroData, frame.payload, sizeof(BaroData));
                 break;
             }
-            case (uint8_t)MsgType::ATTITUDE:
-                Log::info(TAG, "attitude");
+            case (uint8_t)MsgType::ATTITUDE: {
+                memcpy(&attitudeData, frame.payload, sizeof(IMUAttitude));
+                Shared::gImuAttitude.push_latest(attitudeData);
                 break;
+            }
             case (uint8_t)MsgType::CONTROL:
                 Log::info(TAG, "control");
                 break;

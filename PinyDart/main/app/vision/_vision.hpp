@@ -57,8 +57,7 @@ public:
 
     void visionSchedule(const VisionConfig &config);
 
-    Vision(SharedQueue<CamTargetData> &_targetQueue)
-        : cameraFps(), visonFps(), cxLpf(0.05f), cyLpf(0.05f), targetQueue(_targetQueue) {};
+    Vision() : cameraFps(), visonFps(), cxLpf(0.05f), cyLpf(0.05f) {};
     ~Vision();
 
     void deThread();
@@ -112,6 +111,4 @@ private:
     /********************************** */
     LPF cxLpf;
     LPF cyLpf;
-
-    SharedQueue<CamTargetData> &targetQueue;
 };
