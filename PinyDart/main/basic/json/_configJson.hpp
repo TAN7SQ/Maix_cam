@@ -33,7 +33,7 @@ struct VisionConfig
     } mp4;
 };
 
-struct ControlConfig
+struct FusionConfig
 {
     float kp;
     float ki;
@@ -50,7 +50,7 @@ struct NetworkConfig
 struct AppConfig
 {
     VisionConfig vision;
-    // ControlConfig control;
+    FusionConfig fusion;
     // NetworkConfig network;
 };
 

@@ -6,22 +6,27 @@
 
 using namespace maix;
 
-namespace mFusion
+void Fusion::fusionSchedule(const FusionConfig &config)
 {
-void fusion_thread(void)
+    this->_config = config;
+
+    if (pFusionThread == nullptr) {
+        pFusionThread = new std::thread(&Fusion::fusionThread, this);
+        pthread_setname_np(pFusionThread->native_handle(), "FusionThread");
+    }
+}
+
+void Fusion::fusionThread(void)
 {
     log::info("fusion thread start");
-
-    // KalmanFilter kf;
 
     while (!app::need_exit()) {
         // TODO：融合逻辑
         // TODO: 带姿态补偿的LOS
 
-        maix::thread::sleep_ms(10);
+        maix::thread::sleep_ms(1);
+        camAim = targetQueue.pop();
     }
 
     log::info("fusion thread exit");
 }
-
-} // namespace mFusion

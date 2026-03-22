@@ -29,7 +29,6 @@ public:
         _cv_not_empty.notify_one();
     }
 
-    // ================== push（移动，高性能） ==================
     void push(T &&item)
     {
         std::unique_lock<std::mutex> lock(_mtx);
@@ -42,6 +41,30 @@ public:
 
         _queue.push(std::move(item));
         _cv_not_empty.notify_one();
+    }
+
+    void push_latest(const T &item)
+    {
+        std::lock_guard<std::mutex> lock(_mtx);
+
+        if (!_queue.empty()) {
+            _queue.pop();
+        }
+
+        _queue.push(item);
+        _cv_not_empty.notify_one();
+    }
+
+    bool try_push(const T &item)
+    {
+        std::lock_guard<std::mutex> lock(_mtx);
+
+        if (_max_size > 0 && _queue.size() >= _max_size)
+            return false;
+
+        _queue.push(item);
+        _cv_not_empty.notify_one();
+        return true;
     }
 
     T pop()

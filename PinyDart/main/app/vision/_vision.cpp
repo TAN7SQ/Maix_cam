@@ -60,16 +60,12 @@ void Vision::cameraThread(camera::Camera *pcam)
     while (!app::need_exit()) {
         try {
             maix::image::Image *raw = pcam->read();
-
             if (!raw) {
                 maix::thread::sleep_ms(1);
                 continue;
             }
-
             std::shared_ptr<image::Image> img(raw);
-
             frameQueue.push(img);
-            // delete raw;
 
             cameraFps.tick();
             maix::thread::sleep_ms(2);
@@ -109,6 +105,7 @@ void Vision::visionThread()
             Vision::targetDetect(new_img);
             Vision::debugInfo(new_img);
             recordQueue.push(new_img);
+            targetQueue.push_latest(this->target);
             visonFps.tick();
             maix::thread::sleep_ms(2);
 
@@ -504,7 +501,7 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
             target.valid = true;
             target.rawCx = maxblob.cx;
             target.rawCy = maxblob.cy;
-            target.area = (maxblob.w / 2) * (maxblob.w / 2) * 3.1415926f;
+            target.area = (maxblob.w / 2) * (maxblob.w / 2) * 3.1415926f; // 没有意义，在降低识别分辨率后这个变化也不大
             target.yawCam = std::atan(target.normX);
             target.pitchCam = std::atan(target.normY);
         }
@@ -514,12 +511,6 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
     }
 
     if (maxblob.pixels > 0) {
-        // char buf[128];
-        // snprintf(buf, sizeof(buf), "R:%.1f, %.1f", maxblob.cx, maxblob.cy);
-        // img->draw_string(maxblob.cx, maxblob.cy, buf, maix::image::COLOR_RED);
-        // snprintf(buf, sizeof(buf), "T:%.4f, %.4f", target.normX, target.normY);
-        // img->draw_string(maxblob.cx, maxblob.cy + 30, buf, maix::image::COLOR_RED);
-
         img->draw_circle(maxblob.cx, maxblob.cy, maxblob.w / 2, maix::image::COLOR_RED, 3);
         img->draw_cross(maxblob.cx, maxblob.cy, maix::image::COLOR_RED, 3);
     }
@@ -527,9 +518,9 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
 
 void Vision::debugInfo(std::shared_ptr<maix::image::Image> img)
 {
-    img->draw_string(10, 10, (std::string("C:") + cameraFps.str()).c_str(), image::COLOR_WHITE);
-    img->draw_string(10, 22, (std::string("V:") + visonFps.str()).c_str(), image::COLOR_WHITE);
-    img->draw_string(10, 34, Temp::get_cpu_temp().c_str(), image::COLOR_WHITE);
+    img->draw_string(10, 10, (std::string("C:") + cameraFps.str()).c_str(), image::COLOR_WHITE, 0.8);
+    img->draw_string(10, 22, (std::string("V:") + visonFps.str()).c_str(), image::COLOR_WHITE, 0.8);
+    img->draw_string(10, 34, Temp::get_cpu_temp().c_str(), image::COLOR_WHITE, 0.8);
 }
 
 /**

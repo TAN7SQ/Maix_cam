@@ -14,7 +14,7 @@ using namespace maix;
 
 #include "_basic.hpp"
 
-SharedQueue<CamTargetData> globalTargetQueue;
+SharedQueue<CamTargetData> globalTargetQueue{3};
 
 void App::appInit(int argc, char *argv[])
 {
@@ -53,6 +53,6 @@ void App::appSchedule(int argc, char *argv[])
         maix::thread::sleep_ms(100);
     }
     threadRun = false;
-    vision.deThread();
     uart1.deinit();
+    vision.deThread();
 }
