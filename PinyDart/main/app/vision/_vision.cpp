@@ -1,7 +1,5 @@
 #include "_vision.hpp"
 
-#include "_easyLog.hpp"
-
 using namespace maix;
 
 void Vision::visionSchedule(const VisionConfig &config)
@@ -102,12 +100,13 @@ void Vision::visionThread()
         }
         auto new_img = std::shared_ptr<image::Image>(img->copy());
         try {
+            maix::thread::sleep_ms(1);
             Vision::targetDetect(new_img);
             Vision::debugInfo(new_img);
             recordQueue.push(new_img);
             Shared::gTargetQueue.push_latest(this->target);
             visonFps.tick();
-            maix::thread::sleep_ms(2);
+            maix::thread::sleep_ms(1);
 
         } catch (const std::exception &e) {
             Log::error(TAG, "vision exception: %s", e.what());
@@ -224,6 +223,11 @@ void Vision::recoderThread()
             Log::error(TAG, "recoder thread error");
         }
         maix::thread::sleep_ms(1);
+    }
+    if (sock >= 0) {
+        if (close(sock) < 0)
+            Log::info("sock", "close failed");
+        sock = -1;
     }
 }
 

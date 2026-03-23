@@ -3,7 +3,6 @@
 
 using namespace maix;
 
-#include "_easyLog.hpp"
 #include "fusion/_fusion.hpp"
 #include "vision/_vision.hpp"
 
@@ -57,4 +56,6 @@ void App::appSchedule(int argc, char *argv[])
     Shared::threadRun = false;
     uart1.deinit();
     vision.deThread();
+    // fusion.deThread();
+    Log::shutdown();
 }

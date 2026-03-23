@@ -48,15 +48,19 @@ void Fusion::fusionThread(void)
         // TODO：融合逻辑
         // TODO: 带姿态补偿的LOS
 
-        maix::thread::sleep_ms(1);
+        maix::thread::sleep_ms(100);
         if (!Shared::gTargetQueue.empty())
-            camAim = Shared::gTargetQueue.pop();
+            camAim = Shared::gTargetQueue.pop_non_blocking();
 
-        if (!Shared::gTargetQueue.empty())
+        if (!Shared::gImuAttitude.empty()) {
             imuAtt = Shared::gImuAttitude.pop_non_blocking();
+            Log::trace(TAG, "%.2f,%.2f,%.2f,%.2f", imuAtt.quat.w, imuAtt.quat.x, imuAtt.quat.y, imuAtt.quat.z);
+        }
 
-        bodyT = cam2body(camAim);
-        controlE = body2world(bodyT, imuAtt);
+        // bodyT = cam2body(camAim);
+        // Log::info(TAG, "yaw:%.2f,pitch:%.2f", bodyT.yaw_error, bodyT.pitch_error);
+        // controlE = body2world(bodyT, imuAtt);
+        // Log::info(TAG, "yaw:%.2f,pitch:%.2f", controlE.yaw, controlE.pitch);
     }
 
     log::info("fusion thread exit");
