@@ -18,6 +18,7 @@ void App::appInit(int argc, char *argv[])
 {
 
     Log::init();
+    Log::enable_udp("10.104.30.100", 5001);
     Log::info("App", "App init");
     /********************************************************* */
 
@@ -47,8 +48,8 @@ void App::appSchedule(int argc, char *argv[])
     Vision vision;
     vision.visionSchedule(config.vision);
 
-    // Fusion fusion;
-    // fusion.fusionSchedule(config.fusion);
+    Fusion fusion;
+    fusion.fusionSchedule(config.fusion);
 
     while (!app::need_exit()) {
         maix::thread::sleep_ms(100);
@@ -56,7 +57,7 @@ void App::appSchedule(int argc, char *argv[])
     Shared::threadRun = false;
     uart1.deinit();
     vision.deThread();
-    // fusion.deThread();
+    fusion.deThread();
     Shared::reset();
     Log::shutdown();
 }

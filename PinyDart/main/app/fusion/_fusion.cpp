@@ -30,6 +30,15 @@ constexpr float TZ = 0.0f; // 前后偏移
 
 using namespace maix;
 
+void Fusion::deThread()
+{
+    if (pFusionThread && pFusionThread->joinable()) {
+        pFusionThread->join();
+        delete pFusionThread;
+        pFusionThread = nullptr;
+    }
+}
+
 void Fusion::fusionSchedule(const FusionConfig &config)
 {
     this->_config = config;
@@ -54,11 +63,12 @@ void Fusion::fusionThread(void)
 
         if (!Shared::gImuAttitude.empty()) {
             imuAtt = Shared::gImuAttitude.pop_non_blocking();
-            Log::trace(TAG, "%.2f,%.2f,%.2f,%.2f", imuAtt.quat.w, imuAtt.quat.x, imuAtt.quat.y, imuAtt.quat.z);
+            // Log::trace(TAG, "%.2f,%.2f,%.2f,%.2f", imuAtt.quat.w, imuAtt.quat.x, imuAtt.quat.y, imuAtt.quat.z);
         }
 
-        // bodyT = cam2body(camAim);
-        // Log::info(TAG, "yaw:%.2f,pitch:%.2f", bodyT.yaw_error, bodyT.pitch_error);
+        bodyT = cam2body(camAim);
+        Log::info(TAG, "camAim yaw:%.2f,pitch:%.2f", camAim.yawCam, camAim.pitchCam);
+        Log::info(TAG, "yaw:%.2f,pitch:%.2f", bodyT.yaw_error, bodyT.pitch_error);
         // controlE = body2world(bodyT, imuAtt);
         // Log::info(TAG, "yaw:%.2f,pitch:%.2f", controlE.yaw, controlE.pitch);
     }
@@ -77,20 +87,18 @@ BodyTarget Fusion::cam2body(const CamTargetData cam)
     float y_c = -cam.normY; // cam与body的坐标定义相反
     float z_c = 1.0f;
 
-    // Yaw-Pitch-Roll
+    // Pitch-Yaw-Roll
+    float x1 = x_c;
+    float y1 = y_c * CP - z_c * SP;
+    float z1 = y_c * SP + z_c * CP;
 
-    float x1 = x_c * CY - y_c * SY;
-    float y1 = x_c * SY + y_c * CY;
-    float z1 = z_c;
-
-    float x2 = x1 * CP + z1 * SP;
+    float x2 = x1 * CY + z1 * SY;
     float y2 = y1;
-    float z2 = -x1 * SP + z1 * CP;
+    float z2 = -x1 * SY + z1 * CY;
 
-    float x3 = x2;
-    float y3 = y2 * CR - z2 * SR;
-    float z3 = y2 * SR + z2 * CR;
-
+    float x3 = x2 * CR - y2 * SR;
+    float y3 = x2 * SR + y2 * CR;
+    float z3 = z2;
     // 平移补偿
     result.x = x3 + TX;
     result.y = y3 + TY;

@@ -17,6 +17,10 @@
 #define ANSI_BLUE "\033[1;34m"
 #define ANSI_PURPLE "\033[1;35m"
 
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 class Log
 {
 public:
@@ -35,13 +39,30 @@ public:
         running = true;
         log_thread = std::thread(logThread);
     }
+    static void enable_udp(const char *ip, int port)
+    {
+        udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+        if (udp_fd < 0) {
+            perror("udp socket failed");
+            return;
+        }
+        fcntl(udp_fd, F_SETFL, O_NONBLOCK);
+        udp_addr.sin_family = AF_INET;
+        udp_addr.sin_port = htons(port);
+        inet_pton(AF_INET, ip, &udp_addr.sin_addr);
+
+        udp_enable = true;
+    }
 
     static void shutdown()
     {
         running = false;
-        cv.notify_all();
         if (log_thread.joinable())
             log_thread.join();
+        cv.notify_all();
+        if (udp_fd > 0)
+            close(udp_fd);
     }
 
     static void setLogLevel(LogLevel level)
@@ -61,7 +82,6 @@ public:
         push_log(LOG_LEVEL_ERROR, tag, fmt, args);
         va_end(args);
     }
-
     static void warn(const char *tag, const char *fmt, ...)
     {
         va_list args;
@@ -69,7 +89,6 @@ public:
         push_log(LOG_LEVEL_WARN, tag, fmt, args);
         va_end(args);
     }
-
     static void info(const char *tag, const char *fmt, ...)
     {
         va_list args;
@@ -77,7 +96,6 @@ public:
         push_log(LOG_LEVEL_INFO, tag, fmt, args);
         va_end(args);
     }
-
     static void debug(const char *tag, const char *fmt, ...)
     {
         va_list args;
@@ -85,7 +103,6 @@ public:
         push_log(LOG_LEVEL_DEBUG, tag, fmt, args);
         va_end(args);
     }
-
     static void trace(const char *tag, const char *fmt, ...)
     {
         va_list args;
@@ -95,6 +112,10 @@ public:
     }
 
 private:
+    static inline int udp_fd = -1;
+    static inline sockaddr_in udp_addr;
+    static inline bool udp_enable = false;
+    /********************************************* */
     static inline std::chrono::steady_clock::time_point start_time;
     static inline LogLevel current_level = LOG_LEVEL_TRACE;
 
@@ -185,6 +206,10 @@ private:
 
                 lock.unlock();
                 printf("%s\n", msg.c_str());
+
+                if (udp_enable) {
+                    sendto(udp_fd, msg.c_str(), msg.size(), 0, (struct sockaddr *)&udp_addr, sizeof(udp_addr));
+                }
                 lock.lock();
             }
         }

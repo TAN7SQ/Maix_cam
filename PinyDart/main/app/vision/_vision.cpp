@@ -136,7 +136,6 @@ void Vision::recoderThread()
     maix::thread::sleep_ms(100);
     Log::info(TAG, "recoder thread start");
 
-
     uint64_t last_send = 0;
     const int TARGET_FPS = 15;
     const int FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -188,7 +187,7 @@ void Vision::recoderThread()
         last_send = now;
         try {
             if (_config.udp.is_enabled) {
-                
+
                 std::unique_ptr<image::Image> jpeg(img->to_jpeg(50));
                 if (jpeg) {
                     int ret = sendto(sock, jpeg->data(), jpeg->data_size(), 0, (struct sockaddr *)&addr, sizeof(addr));
@@ -361,7 +360,13 @@ void Vision::deThread(void)
         pCameraThread = nullptr;
     }
     if (_cam) {
+
+        _cam->clear_buff();
         _cam->close();
+        if (_cam->is_opened()) {
+            _cam->clear_buff();
+            _cam->close();
+        }
         delete _cam;
         _cam = nullptr;
         Log::warn(TAG, "cam destroy");
