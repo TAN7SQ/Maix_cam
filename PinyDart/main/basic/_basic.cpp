@@ -15,6 +15,7 @@ namespace Shared
 std::atomic<bool> threadRun(true);
 SharedQueue<CamTargetData> gTargetQueue{3};
 SharedQueue<IMUAttitude> gImuAttitude{3};
+SharedQueue<ControlCmd> gControlQueue{3};
 
 }; // namespace Shared
 

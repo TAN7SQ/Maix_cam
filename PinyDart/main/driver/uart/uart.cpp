@@ -65,6 +65,10 @@ void Uart::run()
             }
             parseProtocol(buf, n);
         }
+        if (!Shared::gControlQueue.empty()) {
+            auto tmp = Shared::gControlQueue.pop_non_blocking();
+            Uart::sendProtocol(MsgType::CONTROL, static_cast<const void *>(&tmp), sizeof(ControlCmd));
+        }
     }
 }
 
