@@ -99,7 +99,6 @@ void Vision::visionThread()
             maix::thread::sleep_ms(1);
             continue;
         }
-        // auto new_img = std::shared_ptr<image::Image>(img->copy());
         try {
             maix::thread::sleep_ms(1);
             Vision::targetDetect(img);
