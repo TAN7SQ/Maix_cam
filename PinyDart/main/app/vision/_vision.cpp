@@ -7,27 +7,7 @@ void Vision::visionSchedule(const VisionConfig &config)
     // json data
     _config = config;
 
-    this->_cam = new camera::Camera(IMG_WIDTH,
-                                    IMG_HEIGHT, //
-                                    image::Format::FMT_RGB888,
-                                    nullptr,
-                                    CAM_FPS,
-                                    3,
-                                    true,
-                                    true); // 实测只有单摄像头模式才能不裁切
-
-    if (!_cam->is_opened()) {
-        printf("Camera open failed!\n");
-    }
-
-    _cam->exp_mode(maix::camera::AeMode::Manual);
-    _cam->exposure(200);
-    _cam->constrast(100);
-    _cam->iso(30);
-
-    _cam->vflip(1);
-    _cam->hmirror(1);
-
+    //
     if (pCameraThread == nullptr) {
         pCameraThread = new std::thread(&Vision::cameraThread, this);
         pthread_setname_np(pCameraThread->native_handle(), "cameraThread");
@@ -52,12 +32,29 @@ void Vision::visionSchedule(const VisionConfig &config)
  */
 void Vision::cameraThread()
 {
+
     Log::info(TAG, "camera thread start");
-    this->_cam->skip_frames(10);
+    captureThreadRunning = true;
+    maix::camera::Camera cam = camera::Camera(IMG_WIDTH,
+                                              IMG_HEIGHT, //
+                                              image::Format::FMT_RGB888,
+                                              nullptr,
+                                              CAM_FPS,
+                                              3,
+                                              true,
+                                              true); // 实测只有单摄像头模式才能不裁切
+    cam.exp_mode(maix::camera::AeMode::Manual);
+    cam.exposure(200);
+    cam.constrast(100);
+    cam.iso(30);
+
+    cam.vflip(1);
+    cam.hmirror(1);
+    cam.skip_frames(10);
 
     while (Shared::threadRun) {
         try {
-            maix::image::Image *raw = this->_cam->read();
+            maix::image::Image *raw = cam.read();
             if (!raw) {
                 maix::thread::sleep_ms(1);
                 continue;
@@ -75,6 +72,19 @@ void Vision::cameraThread()
             Log::error(TAG, "cam unknown error");
         }
     }
+    if (cam.is_opened()) {
+
+        cam.clear_buff();
+        cam.close();
+        if (cam.is_opened()) {
+            cam.clear_buff();
+            cam.close();
+        }
+        // delete _cam;
+        // _cam = nullptr;
+        Log::warn(TAG, "cam destroy");
+    }
+    captureThreadRunning = false;
 }
 
 /**
@@ -91,6 +101,7 @@ void Vision::visionThread()
     maix::thread::sleep_ms(100);
 
     Log::info(TAG, "vision thread start");
+    this->visionThreadRunning = true;
     ConfigJson::print_vision(_config);
 
     while (Shared::threadRun) {
@@ -119,6 +130,7 @@ void Vision::visionThread()
             Log::error(TAG, "vision unknown error");
         }
     }
+    this->visionThreadRunning = false;
 }
 
 /**
@@ -134,6 +146,7 @@ void Vision::recoderThread()
 {
     maix::thread::sleep_ms(100);
     Log::info(TAG, "recoder thread start");
+    recoderThreadRunning = true;
 
     uint64_t last_send = 0;
     const int TARGET_FPS = 15;
@@ -234,6 +247,7 @@ void Vision::recoderThread()
             Log::info("sock", "close failed");
         sock = -1;
     }
+    recoderThreadRunning = false;
 }
 
 // void Vision::recoderThread()
@@ -342,34 +356,23 @@ Vision::~Vision()
 void Vision::deThread(void)
 {
 
-    if (pVisionThread && pVisionThread->joinable()) {
+    if (pVisionThread && pVisionThread->joinable() && !visionThreadRunning) {
         pVisionThread->join();
         delete pVisionThread;
         pVisionThread = nullptr;
     }
-    if (pRecoderThread && pRecoderThread->joinable()) {
+    if (pRecoderThread && pRecoderThread->joinable() && !recoderThreadRunning) {
         pRecoderThread->join();
 
         delete pRecoderThread;
         pRecoderThread = nullptr;
     }
-    if (pCameraThread && pCameraThread->joinable()) {
+    if (pCameraThread && pCameraThread->joinable() && !captureThreadRunning) {
         pCameraThread->join();
         delete pCameraThread;
         pCameraThread = nullptr;
     }
-    if (_cam) {
 
-        _cam->clear_buff();
-        _cam->close();
-        if (_cam->is_opened()) {
-            _cam->clear_buff();
-            _cam->close();
-        }
-        delete _cam;
-        _cam = nullptr;
-        Log::warn(TAG, "cam destroy");
-    }
     frameQueue.clear();
     recordQueue.clear();
 
@@ -434,9 +437,10 @@ float Vision::calcBlobCenterBrightness(maix::image::Image *img, maix::image::Blo
 
     return (float)sum / count;
 }
-
 void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
 {
+    int x, y, w, h;
+
     int stride;
     if (maxblob.w > 20)
         stride = 3;
@@ -444,16 +448,12 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
         stride = 2;
     else
         stride = 1;
-
-    int x, y, w, h;
-
     if (maxblob.pixels > 0) {
 
         int roi_size = std::clamp(maxblob.w * 4, 20, 100);
 
         x = std::clamp((int)maxblob.cx - roi_size / 2, 0, img->width() - 1);
         y = std::clamp((int)maxblob.cy - roi_size / 2, 0, img->height() - 1);
-
         w = std::min(roi_size, img->width() - x);
         h = std::min(roi_size, img->height() - y);
 
@@ -484,56 +484,55 @@ void Vision::targetDetect(std::shared_ptr<maix::image::Image> img)
                                  _config.find_blobs.y_hist_bins_max);
 
     maxblob.pixels = 0;
-    maxblob.brightness = 0;
-    maxblob.w = 0;
-
     float bestScore = 0;
-
-    // *******************************************************
 
     for (auto &blob : blobs) {
 
         if (blob.pixels() < 5)
             continue;
-
         if (blob.w() > 60 || blob.h() > 60)
             continue;
 
         float brightness = calcBlobCenterBrightness(img.get(), blob);
-
         float score = brightness * brightness * sqrt(blob.pixels());
 
         if (score > bestScore) {
+
             auto sub = calcBlobSubpixelCenter(img.get(), blob);
+
             bestScore = score;
 
             maxblob.cx = cxLpf.update(sub.cx);
             maxblob.cy = cyLpf.update(sub.cy);
-            maxblob.x = blob.x();
-            maxblob.y = blob.y();
             maxblob.w = blob.w();
             maxblob.h = blob.h();
-
             maxblob.pixels = blob.pixels();
-            maxblob.brightness = brightness;
 
-            //************************************************************************************** */
+            float r = estimateRadius(img.get(), maxblob.cx, maxblob.cy);
+
+            if (r > 0) {
+                target.radius = r;
+                target.area = M_PI * r * r;
+            }
+            else {
+                target.radius = maxblob.w * 0.5f; // fallback
+            }
+
             undistortPoint(maxblob.cx, maxblob.cy, target.normX, target.normY);
-            target.valid = true;
             target.rawCx = maxblob.cx;
             target.rawCy = maxblob.cy;
-            target.area = (maxblob.w / 2) * (maxblob.w / 2) * 3.1415926f; // 没有意义，在降低识别分辨率后这个变化也不大
             target.yawCam = std::atan(target.normX);
             target.pitchCam = std::atan(target.normY);
-        }
-        else {
-            target.valid = false;
+            target.valid = true;
         }
     }
 
-    if (maxblob.pixels > 0) {
-        img->draw_circle(maxblob.cx, maxblob.cy, maxblob.w / 2, maix::image::COLOR_RED, 3);
-        img->draw_cross(maxblob.cx, maxblob.cy, maix::image::COLOR_RED, 3);
+    if (target.valid) {
+        img->draw_circle(maxblob.cx, maxblob.cy, target.radius, maix::image::COLOR_RED, 2);
+        img->draw_cross(maxblob.cx, maxblob.cy, maix::image::COLOR_RED, 2);
+    }
+    else {
+        target.valid = false;
     }
 }
 
@@ -567,6 +566,7 @@ Vision::SubpixelResult Vision::calcBlobSubpixelCenter(maix::image::Image *img, m
 
             auto c = img->get_pixel(x, y, true);
 
+            // 如果只使用绿色“可能会”更稳
             int r = c[0];
             int g = c[1];
             int b = c[2];
@@ -599,6 +599,85 @@ Vision::SubpixelResult Vision::calcBlobSubpixelCenter(maix::image::Image *img, m
     res.brightness = sumI / ((2 * radius + 1) * (2 * radius + 1));
 
     return res;
+}
+
+float Vision::subpixelEdge1D(maix::image::Image *img, float cx, float cy, float dx, float dy)
+{
+    const int max_r = 12;
+
+    float prevI = 0;
+    float bestGrad = 0;
+    int bestIdx = 0;
+
+    for (int i = 1; i < max_r; i++) {
+
+        int x = (int)(cx + dx * i);
+        int y = (int)(cy + dy * i);
+
+        if (x < 1 || y < 1 || x >= img->width() - 1 || y >= img->height() - 1)
+            break;
+
+        auto c = img->get_pixel(x, y, true);
+
+        float I = c[1];
+
+        float grad = fabs(I - prevI);
+
+        if (grad > bestGrad) {
+            bestGrad = grad;
+            bestIdx = i;
+        }
+
+        prevI = I;
+    }
+
+    if (bestGrad < 5)
+        return -1;
+
+    // ===== 抛物线亚像素 =====
+    float g0 = bestGrad * 0.8f;
+    float g1 = bestGrad;
+    float g2 = bestGrad * 0.9f;
+
+    float sub = (g0 - g2) / (2 * (g0 - 2 * g1 + g2) + 1e-6f);
+
+    return bestIdx + sub;
+}
+
+float Vision::estimateRadius(maix::image::Image *img, float cx, float cy)
+{
+    const int N = 16;
+
+    float sumR = 0;
+    int count = 0;
+
+    for (int i = 0; i < N; i++) {
+
+        float theta = 2 * M_PI * i / N;
+
+        float dx = cos(theta);
+        float dy = sin(theta);
+
+        float r = subpixelEdge1D(img, cx, cy, dx, dy);
+
+        if (r > 1 && r < 30) {
+            sumR += r;
+            count++;
+        }
+    }
+
+    if (count < 6)
+        return -1;
+
+    return sumR / count;
+}
+
+float Vision::estimateDistance(float pixel_radius)
+{
+    float real_radius = 0.01f; // 灯实际半径（米）
+    float fx = camera_fx;      // 标定得到
+
+    return fx * real_radius / pixel_radius;
 }
 
 void Vision::undistortPoint(float u, float v, float &x_out, float &y_out)

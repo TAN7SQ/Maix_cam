@@ -104,6 +104,8 @@ struct CamTargetData
 
     float yawCam = 0.0f;
     float pitchCam = 0.0f;
+
+    float radius = 0.0f; // 像素半径
 };
 struct ControlCmd
 {

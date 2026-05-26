@@ -80,13 +80,20 @@ private:
     float calcBlobBrightness(maix::image::Image *img, maix::image::Blob &blob);
     float calcBlobCenterBrightness(maix::image::Image *img, maix::image::Blob &blob);
     SubpixelResult calcBlobSubpixelCenter(maix::image::Image *img, maix::image::Blob &blob);
+    float subpixelEdge1D(maix::image::Image *img, float cx, float cy, float dx, float dy);
+    float estimateRadius(maix::image::Image *img, float cx, float cy);
+    float estimateDistance(float pixel_radius);
 
     // 去畸变
     void undistortPoint(float u, float v, float &x_out, float &y_out);
 
     /********************************** */
 private:
-    maix::camera::Camera *_cam;
+    bool captureThreadRunning = false;
+    bool visionThreadRunning = false;
+    bool recoderThreadRunning = false;
+
+    // maix::camera::Camera *_cam;
 
     // 引导灯实际尺寸
     const float TARGET_SIZE = 5.0f; // cm
